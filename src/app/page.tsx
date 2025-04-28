@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Suspense, useMemo } from "react";
 import { Geist } from "next/font/google";
 import { ALERT_TYPES, colorMap } from "../config/alertConfig";
 import { parseAlerts, NWSAlertGrouped, NWSAlertProperties, isZoneBased, getCounties } from "../utils/nwsAlertUtils";
@@ -15,12 +15,13 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-export default function LiveAlertOverlay() {
+function AlertOverlayContent() {
   const [alerts, setAlerts] = useState<NWSAlertGrouped>({});
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitionTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastAlertKey = useRef<string | null>(null);
+  const alertsLengthRef = useRef<number>(0);
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function LiveAlertOverlay() {
   }, [searchParams]);
 
   // Flatten all alerts for cycling
-  const allAlerts = ALERT_TYPES.flatMap(({ key, label, color }) =>
+  const allAlerts = useMemo(() => ALERT_TYPES.flatMap(({ key, label, color }) =>
     (alerts[key] || []).map((a: NWSAlertProperties) => ({
       label: (a.event.startsWith("PDS") ? "PDS " : "") +
         (a.event.includes("OBSERVED") ? "OBSERVED " : "") +
@@ -64,7 +65,12 @@ export default function LiveAlertOverlay() {
       geocode: a.geocode,
       parameters: a.parameters,
     }))
-  );
+  ), [alerts]);
+
+  // Update alerts length ref when allAlerts changes
+  useEffect(() => {
+    alertsLengthRef.current = allAlerts.length;
+  }, [allAlerts]);
 
   function getAlertKey(alert: { headline: string; area: string; expires: string } | null) {
     if (!alert) return '';
@@ -72,7 +78,7 @@ export default function LiveAlertOverlay() {
   }
 
   useEffect(() => {
-    if (allAlerts.length <= 1) return;
+    if (alertsLengthRef.current <= 1) return;
     // Determine display duration based on county count
     const currentAlert = allAlerts[currentIdx];
     let displayDuration = 10000; // default 10s
@@ -86,7 +92,7 @@ export default function LiveAlertOverlay() {
     const interval = setInterval(() => {
       setIsTransitioning(true);
       transitionTimeout.current = setTimeout(() => {
-        setCurrentIdx((idx) => (idx + 1) % allAlerts.length);
+        setCurrentIdx((idx) => (idx + 1) % alertsLengthRef.current);
         setIsTransitioning(false);
       }, 300);
     }, displayDuration);
@@ -94,7 +100,7 @@ export default function LiveAlertOverlay() {
       clearInterval(interval);
       if (transitionTimeout.current) clearTimeout(transitionTimeout.current);
     };
-  }, [allAlerts.length, currentIdx]);
+  }, [currentIdx, allAlerts]);
 
   useEffect(() => {
     setIsTransitioning(false);
@@ -104,8 +110,6 @@ export default function LiveAlertOverlay() {
   useEffect(() => {
     lastAlertKey.current = getAlertKey(allAlerts[currentIdx] || null);
   }, [currentIdx, allAlerts]);
-
-  const allAlertKeys = allAlerts.map(getAlertKey);
 
   useEffect(() => {
     if (allAlerts.length === 0) {
@@ -118,7 +122,7 @@ export default function LiveAlertOverlay() {
     } else {
       setCurrentIdx(0);
     }
-  }, [allAlerts, allAlerts.length, allAlertKeys]);
+  }, [allAlerts]);
 
   const alert = allAlerts[currentIdx] || null;
   const alertColor = alert ? colorMap[alert.color] || colorMap["default"] : colorMap["default"];
@@ -136,5 +140,27 @@ export default function LiveAlertOverlay() {
         <AlertAreaBar area={alert ? alert.area : null} geocode={alert ? alert.geocode : undefined} isTransitioning={isTransitioning} color={alertColor.light} />
       </div>
     </div>
+  );
+}
+
+// Loading component for Suspense fallback
+function LoadingOverlay() {
+  return (
+    <div className={`fixed bottom-0 left-0 w-full z-50 ${geistSans.variable}`}>
+      <div className="grid grid-cols-4 grid-rows-2 w-full min-h-[90px] bg-gray-800 animate-pulse">
+        <div className="col-span-1 row-span-1"></div>
+        <div className="col-span-3 row-span-1"></div>
+        <div className="col-span-1 row-span-1"></div>
+        <div className="col-span-3 row-span-1"></div>
+      </div>
+    </div>
+  );
+}
+
+export default function LiveAlertOverlay() {
+  return (
+    <Suspense fallback={<LoadingOverlay />}>
+      <AlertOverlayContent />
+    </Suspense>
   );
 }

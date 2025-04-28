@@ -46,7 +46,7 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
       }
       requestAnimationFrame(step);
     }
-  }, [area]);
+  }, [area, geocode]);
 
   return (
     <div
