@@ -1,0 +1,17 @@
+import React from "react";
+import { getExpiresIn } from "../../utils/nwsAlertUtils";
+
+type AlertExpiresProps = {
+  expires: string | null;
+  isTransitioning: boolean;
+};
+
+export default function AlertExpires({ expires, isTransitioning }: AlertExpiresProps) {
+  return (
+    <div className="bg-neutral-900 border-t border-neutral-700 flex items-center px-4 py-2 text-white font-bold text-xl shadow row-span-1 col-span-1 drop-shadow-md whitespace-nowrap overflow-hidden text-ellipsis" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.7)' }}>
+      <span className={`transition-all duration-300 inline-block ${isTransitioning && expires ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+        EXPIRES IN {expires ? getExpiresIn(expires) : "-"}
+      </span>
+    </div>
+  );
+} 
