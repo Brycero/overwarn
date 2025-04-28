@@ -6,7 +6,7 @@ Overwarn is a real-time weather alert overlay for weather live streams. It fetch
 
 ## How To Use
 
-The easiest way to use Overwarn is on [the website](https://overwarn.vercel.app). From there, you can embed Overwarn as a browser source in OBS Studio, Streamlabs Desktop, Meld Studio, or any other streaming application that supports browser sources. The recommended size is 1920x1080.
+The easiest way to use Overwarn is on [the website](https://overwarn.mirra.tv). From there, you can embed Overwarn as a browser source in OBS Studio, Streamlabs Desktop, Meld Studio, or any other streaming application that supports browser sources. The recommended size is 1920x1080.
 
 ## Features
 
