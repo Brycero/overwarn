@@ -2,6 +2,8 @@
 
 Overwarn is a real-time weather alert overlay for weather live streams. It fetches and displays active National Weather Service (NWS) warnings and watches in a visually prominent, broadcast-style overlay. The overlay cycles through active alerts, showing their type, affected states/counties, and expiration times.
 
+![Screenshot of Overwarn](https://i.imgur.com/ON3kya9.png)
+
 ## How To Use
 
 The easiest way to use Overwarn is on [the website](https://overwarn.vercel.app). From there, you can embed Overwarn as a browser source in OBS Studio, Streamlabs Desktop, Meld Studio, or any other streaming application that supports browser sources. The recommended size is 1920x1080.
@@ -10,9 +12,11 @@ The easiest way to use Overwarn is on [the website](https://overwarn.vercel.app)
 
 - **Live NWS Alerts:** Fetches active warnings and watches from the [National Weather Service API](https://api.weather.gov/alerts/active).
 - **Alert Types:** Supports different types of Tornado Warnings, Severe Thunderstorm Warnings, Flash Flood Warnings, Winter Storm Warnings, and Watches.
-- **Broadcast Overlay:** Displays alert type, affected area (states/counties), time remaining, and expiration time in a bold, easy-to-read overlay.
+- **Simple Overlay:** Displays alert type, affected area (states/counties), time remaining, and expiration time in a bold, easy-to-read overlay.
 - **Animated Cycling:** Automatically cycles through all active alerts with smooth transitions.
 - **Timezone-Aware:** Shows expiration times in the correct local timezone.
+- **Powerful Filters:** Only show alerts issued for certain states or by certain weather forecast offices.
+- **Query Parameters:** Supports URL query parameters so you can easily paste your filter settings across multiple apps and devices.
 
 ## Self-Hosting
 

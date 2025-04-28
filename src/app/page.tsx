@@ -9,6 +9,8 @@ import AlertStateBar from "../components/alertBar/AlertStateBar";
 import AlertTypeBar from "../components/alertBar/AlertTypeBar";
 import AlertAreaBar from "../components/alertBar/AlertAreaBar";
 import { useSearchParams } from "next/navigation";
+import { Menu } from "lucide-react";
+import AppMenu from "../components/menu/AppMenu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -159,8 +161,20 @@ function LoadingOverlay() {
 
 export default function LiveAlertOverlay() {
   return (
-    <Suspense fallback={<LoadingOverlay />}>
-      <AlertOverlayContent />
-    </Suspense>
+    <div className="group min-h-screen w-full fixed inset-0">
+      <div className="fixed top-4 left-4 z-50">
+        <AppMenu>
+          <button
+            aria-label="Open menu"
+            className="opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity duration-300 bg-black/50 p-1 rounded-md"
+          >
+            <Menu className="w-8 h-8 text-white" />
+          </button>
+        </AppMenu>
+      </div>
+      <Suspense fallback={<LoadingOverlay />}>
+        <AlertOverlayContent />
+      </Suspense>
+    </div>
   );
 }

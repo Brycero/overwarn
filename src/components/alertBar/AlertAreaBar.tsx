@@ -12,6 +12,13 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
   const containerRef = useRef<HTMLDivElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
 
+  // Compute the actual scroll content string
+  const scrollContent = area
+    ? isZoneBased(area, geocode)
+      ? area.toUpperCase()
+      : `COUNTIES: ${getCounties(area).toUpperCase()}`
+    : "-";
+
   useEffect(() => {
     const container = containerRef.current;
     const content = spanRef.current;
@@ -33,6 +40,7 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
         }
       }
       const maxScroll = container.scrollWidth - container.clientWidth;
+      let animationFrameId: number;
 
       function step(timestamp: number) {
         if (!container) return;
@@ -41,12 +49,14 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
         const progress = Math.min(elapsed / duration, 1);
         container.scrollLeft = progress * maxScroll;
         if (progress < 1) {
-          requestAnimationFrame(step);
+          animationFrameId = requestAnimationFrame(step);
         }
       }
-      requestAnimationFrame(step);
+      animationFrameId = requestAnimationFrame(step);
+      // Cleanup to cancel animation if content changes mid-scroll
+      return () => cancelAnimationFrame(animationFrameId);
     }
-  }, [area, geocode]);
+  }, [area, geocode, scrollContent]);
 
   return (
     <div
@@ -59,11 +69,7 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
         className={`transition-all duration-300 inline-block ${isTransitioning && area ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}
         style={{ whiteSpace: 'nowrap' }}
       >
-        {area ? (
-          isZoneBased(area, geocode)
-            ? area.toUpperCase()
-            : `COUNTIES: ${getCounties(area).toUpperCase()}`
-        ) : "-"}
+        {scrollContent}
       </span>
     </div>
   );
