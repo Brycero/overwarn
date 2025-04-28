@@ -12,6 +12,9 @@ export type NWSAlertProperties = {
     SAME?: string[];
     [key: string]: string[] | undefined;
   };
+  parameters?: {
+    AWIPSidentifier?: string[];
+  };
 };
 
 export type NWSAlertGrouped = {
@@ -43,6 +46,7 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
         ends: properties.ends,
         description: properties.description,
         geocode: properties.geocode,
+        parameters: properties.parameters,
       };
       if (!grouped[type]) grouped[type] = [];
       grouped[type].push(alertProps);
@@ -60,6 +64,7 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
         ends: properties.ends,
         description: properties.description,
         geocode: properties.geocode,
+        parameters: properties.parameters,
       };
       if (!grouped[type]) grouped[type] = [];
       grouped[type].push(alertProps);
@@ -69,8 +74,14 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
 }
 
 const STATE_MAP: { [abbr: string]: string } = {
-  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming"
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", PR: "Puerto Rico", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming"
 };
+
+// Inverted map for lookups by full state name
+const STATE_NAME_TO_ABBR: { [name: string]: string } = Object.entries(STATE_MAP).reduce(
+  (acc, [abbr, name]) => ({ ...acc, [name.toLowerCase()]: abbr }), 
+  {} as { [name: string]: string }
+);
 
 export function getStates(area: string, geocode?: { UGC?: string[] }) {
   const areaMatches = area.match(/,\s*([A-Z]{2})/g) || [];
@@ -123,6 +134,7 @@ const TZ_ABBR_MAP: { [abbr: string]: string } = {
   HST: "Pacific/Honolulu",
   HAST: "Pacific/Honolulu",
   HDT: "Pacific/Honolulu",
+  AST: "America/Puerto_Rico",
 };
 
 export function getAlertTimezoneFromHeadline(headline: string) {
@@ -137,4 +149,106 @@ export function formatExpiresTime(expires: string, headline: string) {
   const tz = getAlertTimezoneFromHeadline(headline);
   const dt = DateTime.fromISO(expires, { zone: "utc" }).setZone(tz);
   return dt.toFormat("MMM dd, hh:mm a") + " " + dt.offsetNameShort;
+}
+
+/**
+ * Normalize state input to handle abbreviations and full names
+ * @param state State name or abbreviation
+ * @returns Normalized state abbreviation or null if invalid
+ */
+export function normalizeStateInput(state: string): string | null {
+  const trimmed = state.trim().toUpperCase();
+  
+  // If it's already a valid 2-letter abbreviation
+  if (/^[A-Z]{2}$/.test(trimmed) && STATE_MAP[trimmed]) {
+    return trimmed;
+  }
+  
+  // If it's a full state name, convert to abbreviation
+  const stateAbbr = STATE_NAME_TO_ABBR[state.trim().toLowerCase()];
+  if (stateAbbr) {
+    return stateAbbr;
+  }
+  
+  return null;
+}
+
+/**
+ * Filter alerts by state(s)
+ * @param alerts Grouped alerts object
+ * @param states Array of state names or abbreviations
+ * @returns Filtered alerts object
+ */
+export function filterAlertsByStates(alerts: NWSAlertGrouped, states: string[]): NWSAlertGrouped {
+  if (!states.length) return alerts;
+  
+  // Normalize all state inputs
+  const normalizedStates = states
+    .map(normalizeStateInput)
+    .filter((state): state is string => state !== null);
+  
+  if (!normalizedStates.length) return alerts;
+  
+  const result: NWSAlertGrouped = {};
+  
+  // Check each alert type
+  Object.entries(alerts).forEach(([alertType, alertsList]) => {
+    // Filter alerts that match any of the specified states
+    const filteredAlerts = alertsList.filter(alert => {
+      // Check if alert has any of the specified states
+      const areaMatches = alert.areaDesc.match(/,\s*([A-Z]{2})/g) || [];
+      const areaAbbrs = areaMatches.map(m => m.replace(/,\s*/, ""));
+      
+      // Check UGC codes if available
+      let ugcAbbrs: string[] = [];
+      if (alert.geocode?.UGC && alert.geocode.UGC.length > 0) {
+        ugcAbbrs = alert.geocode.UGC.map(ugc => ugc.substring(0, 2));
+      }
+      
+      const allAbbrs = Array.from(new Set([...areaAbbrs, ...ugcAbbrs]));
+      
+      // Return true if any of the normalized states match this alert
+      return normalizedStates.some(state => allAbbrs.includes(state));
+    });
+    
+    // Add to result if we have any alerts for this type
+    if (filteredAlerts.length > 0) {
+      result[alertType] = filteredAlerts;
+    }
+  });
+  
+  return result;
+}
+
+/**
+ * Filter alerts by NWS office code(s)
+ * @param alerts Grouped alerts object
+ * @param offices Array of 3-letter NWS office codes
+ * @returns Filtered alerts object
+ */
+export function filterAlertsByOffices(alerts: NWSAlertGrouped, offices: string[]): NWSAlertGrouped {
+  if (!offices.length) return alerts;
+  
+  // Normalize office codes to uppercase
+  const normalizedOffices = offices.map(office => office.toUpperCase());
+  
+  const result: NWSAlertGrouped = {};
+  
+  Object.entries(alerts).forEach(([alertType, alertsList]) => {
+    const filteredAlerts = alertsList.filter(alert => {
+      // Extract office code from AWIPSidentifier
+      const awipsId = alert.parameters?.AWIPSidentifier?.[0];
+      if (!awipsId) return false;
+      
+      // The office code is the last 3 characters, regardless of product code length
+      const officeCode = awipsId.slice(-3);
+      return normalizedOffices.includes(officeCode);
+    });
+    
+    if (filteredAlerts.length > 0) {
+      result[alertType] = filteredAlerts;
+    }
+  });
+  
+  return result;
 } 

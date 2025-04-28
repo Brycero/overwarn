@@ -2,11 +2,13 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Geist } from "next/font/google";
 import { ALERT_TYPES, colorMap } from "../config/alertConfig";
-import { parseAlerts, NWSAlertGrouped, NWSAlertProperties } from "../utils/nwsAlertUtils";
+import { parseAlerts, NWSAlertGrouped, NWSAlertProperties, isZoneBased, getCounties } from "../utils/nwsAlertUtils";
+import { applyQueryFilters } from "../utils/queryParamUtils";
 import AlertExpires from "../components/alertBar/AlertExpires";
 import AlertStateBar from "../components/alertBar/AlertStateBar";
 import AlertTypeBar from "../components/alertBar/AlertTypeBar";
 import AlertAreaBar from "../components/alertBar/AlertAreaBar";
+import { useSearchParams } from "next/navigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,6 +21,7 @@ export default function LiveAlertOverlay() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitionTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastAlertKey = useRef<string | null>(null);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     let isMounted = true;
@@ -27,7 +30,17 @@ export default function LiveAlertOverlay() {
         "https://api.weather.gov/alerts/active"
       );
       const data = await res.json();
-      if (isMounted) setAlerts(parseAlerts(data.features || []));
+      if (isMounted) {
+        // Parse the raw alerts
+        const parsedAlerts = parseAlerts(data.features || []);
+        
+        // Apply filters based on query parameters
+        const state = searchParams.get('state') || undefined;
+        const wfo = searchParams.get('wfo') || undefined;
+        const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo });
+        
+        setAlerts(filteredAlerts);
+      }
     }
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 30000);
@@ -35,7 +48,7 @@ export default function LiveAlertOverlay() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [searchParams]);
 
   // Flatten all alerts for cycling
   const allAlerts = ALERT_TYPES.flatMap(({ key, label, color }) =>
@@ -49,6 +62,7 @@ export default function LiveAlertOverlay() {
       area: a.areaDesc,
       expires: a.ends,
       geocode: a.geocode,
+      parameters: a.parameters,
     }))
   );
 
@@ -59,18 +73,28 @@ export default function LiveAlertOverlay() {
 
   useEffect(() => {
     if (allAlerts.length <= 1) return;
+    // Determine display duration based on county count
+    const currentAlert = allAlerts[currentIdx];
+    let displayDuration = 10000; // default 10s
+    if (currentAlert && !isZoneBased(currentAlert.area, currentAlert.geocode)) {
+      const counties = getCounties(currentAlert.area);
+      const countyCount = counties.split(',').length;
+      if (countyCount > 8) {
+        displayDuration = 15000; // 15s for long county lists
+      }
+    }
     const interval = setInterval(() => {
       setIsTransitioning(true);
       transitionTimeout.current = setTimeout(() => {
         setCurrentIdx((idx) => (idx + 1) % allAlerts.length);
         setIsTransitioning(false);
       }, 300);
-    }, 10000);
+    }, displayDuration);
     return () => {
       clearInterval(interval);
       if (transitionTimeout.current) clearTimeout(transitionTimeout.current);
     };
-  }, [allAlerts.length]);
+  }, [allAlerts.length, currentIdx]);
 
   useEffect(() => {
     setIsTransitioning(false);

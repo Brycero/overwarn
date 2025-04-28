@@ -23,7 +23,15 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
     // Check for overflow
     if (content.scrollWidth > container.clientWidth) {
       let start: number | null = null;
-      const duration = 10000; // 10 seconds
+      // Determine scroll duration based on county count
+      let duration = 10000; // 10 seconds default
+      if (area && !isZoneBased(area, geocode)) {
+        const counties = getCounties(area);
+        const countyCount = counties.split(',').length;
+        if (countyCount > 8) {
+          duration = 15000; // 15 seconds for long county lists
+        }
+      }
       const maxScroll = container.scrollWidth - container.clientWidth;
 
       function step(timestamp: number) {
