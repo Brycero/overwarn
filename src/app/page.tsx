@@ -5,7 +5,7 @@ import { DateTime } from "luxon";
 
 const ALERT_TYPES = [
   { key: "TOR", label: "TORNADO WARNING", color: "bg-red-600" },
-  { key: "TOR_EMERGENCY", label: "TORNADO WARNING", color: "bg-purple-600" },
+  { key: "TOR_EMERGENCY", label: "TORNADO EMERGENCY", color: "bg-purple-600" },
   { key: "SVR", label: "SEVERE T-STORM WARNING", color: "bg-yellow-500" },
   { key: "FFW", label: "FLASH FLOOD WARNING", color: "bg-green-500" },
   { key: "WSW", label: "WINTER STORM WARNING", color: "bg-blue-500" },
@@ -94,11 +94,6 @@ const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
-
-// Map state abbreviations to primary timezones
-const STATE_TIMEZONE_MAP: { [abbr: string]: string } = {
-  AL: "America/Chicago", AK: "America/Anchorage", AZ: "America/Phoenix", AR: "America/Chicago", CA: "America/Los_Angeles", CO: "America/Denver", CT: "America/New_York", DE: "America/New_York", FL: "America/New_York", GA: "America/New_York", HI: "Pacific/Honolulu", ID: "America/Boise", IL: "America/Chicago", IN: "America/Indiana/Indianapolis", IA: "America/Chicago", KS: "America/Chicago", KY: "America/New_York", LA: "America/Chicago", ME: "America/New_York", MD: "America/New_York", MA: "America/New_York", MI: "America/Detroit", MN: "America/Chicago", MS: "America/Chicago", MO: "America/Chicago", MT: "America/Denver", NE: "America/Chicago", NV: "America/Los_Angeles", NH: "America/New_York", NJ: "America/New_York", NM: "America/Denver", NY: "America/New_York", NC: "America/New_York", ND: "America/Chicago", OH: "America/New_York", OK: "America/Chicago", OR: "America/Los_Angeles", PA: "America/New_York", RI: "America/New_York", SC: "America/New_York", SD: "America/Chicago", TN: "America/Chicago", TX: "America/Chicago", UT: "America/Denver", VT: "America/New_York", VA: "America/New_York", WA: "America/Los_Angeles", WV: "America/New_York", WI: "America/Chicago", WY: "America/Denver"
-};
 
 export default function LiveAlertOverlay() {
   const [alerts, setAlerts] = useState<NWSAlertGrouped>({});
@@ -240,27 +235,36 @@ export default function LiveAlertOverlay() {
       .join(', ');
   }
 
-  // Helper to get the primary timezone for an alert (by state)
-  function getAlertTimezone(area: string, geocode?: { UGC?: string[] }) {
-    // Try to extract state abbreviation from area or UGC
-    const areaMatches = area.match(/,\s*([A-Z]{2})/g) || [];
-    const areaAbbrs = areaMatches.map((m) => m.replace(/,\s*/, ""));
-    let ugcAbbrs: string[] = [];
-    if (geocode && geocode.UGC && geocode.UGC.length > 0) {
-      ugcAbbrs = geocode.UGC.map((ugc) => ugc.substring(0, 2));
-    }
-    const allAbbrs = Array.from(new Set([...areaAbbrs, ...ugcAbbrs]));
-    // Use the first state abbreviation found
-    for (const abbr of allAbbrs) {
-      if (STATE_TIMEZONE_MAP[abbr]) return STATE_TIMEZONE_MAP[abbr];
+  // Helper to get the primary timezone for an alert (by headline)
+  function getAlertTimezoneFromHeadline(headline: string) {
+    // Map common timezone abbreviations to IANA timezones
+    const TZ_ABBR_MAP: { [abbr: string]: string } = {
+      CDT: "America/Chicago",
+      CST: "America/Chicago",
+      MDT: "America/Denver",
+      MST: "America/Denver",
+      EDT: "America/New_York",
+      EST: "America/New_York",
+      PDT: "America/Los_Angeles",
+      PST: "America/Los_Angeles",
+      AKDT: "America/Anchorage",
+      AKST: "America/Anchorage",
+      HST: "Pacific/Honolulu",
+      HAST: "Pacific/Honolulu",
+      HDT: "Pacific/Honolulu",
+    };
+    // Try to find a timezone abbreviation in the headline
+    const match = headline.match(/\b([A-Z]{2,4})\b/);
+    if (match && TZ_ABBR_MAP[match[1]]) {
+      return TZ_ABBR_MAP[match[1]];
     }
     // Default to UTC if not found
     return "UTC";
   }
 
-  // Helper to format expires time in alert's timezone
-  function formatExpiresTime(expires: string, area: string, geocode?: { UGC?: string[] }) {
-    const tz = getAlertTimezone(area, geocode);
+  // Helper to format expires time in alert's timezone (using headline)
+  function formatExpiresTime(expires: string, headline: string) {
+    const tz = getAlertTimezoneFromHeadline(headline);
     const dt = DateTime.fromISO(expires, { zone: "utc" }).setZone(tz);
     return dt.toFormat("MMM dd, hh:mm a") + " " + dt.offsetNameShort;
   }
@@ -290,7 +294,7 @@ export default function LiveAlertOverlay() {
         </div>
         {/* Top Right: State | Expires Time */}
         <div className="bg-[#4a3238] border-t border-neutral-700 flex items-center justify-start px-6 py-2 text-white font-bold text-xl shadow row-span-1 col-span-3 drop-shadow-md uppercase whitespace-nowrap overflow-hidden text-ellipsis" style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.7)' }}>
-          <span className={`transition-all duration-300 inline-block ${isTransitioning && alert ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>{alert ? `${getStates(alert.area, alert.geocode)} | EXPIRES: ${formatExpiresTime(alert.expires, alert.area, alert.geocode)}` : "-"}</span>
+          <span className={`transition-all duration-300 inline-block ${isTransitioning && alert ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>{alert ? `${getStates(alert.area, alert.geocode)} | EXPIRES: ${formatExpiresTime(alert.expires, alert.headline)}` : "-"}</span>
         </div>
         {/* Bottom Left: Alert Type */}
         <div className={`${alertColor.base} transition-colors duration-300 flex items-center px-4 py-3 text-white font-extrabold text-2xl shadow row-span-1 col-span-1 drop-shadow-md whitespace-nowrap overflow-hidden text-ellipsis`} style={{ textShadow: '1px 1px 4px rgba(0,0,0,0.7)' }}>
