@@ -4,10 +4,10 @@ import { Geist } from "next/font/google";
 import { ALERT_TYPES, colorMap } from "../config/alertConfig";
 import { parseAlerts, NWSAlertGrouped, NWSAlertProperties, isZoneBased, getCounties } from "../utils/nwsAlertUtils";
 import { applyQueryFilters } from "../utils/queryParamUtils";
-import AlertExpires from "../components/AlertBar/AlertExpires";
-import AlertStateBar from "../components/AlertBar/AlertStateBar";
-import AlertTypeBar from "../components/AlertBar/AlertTypeBar";
-import AlertAreaBar from "../components/AlertBar/AlertAreaBar";
+import AlertExpires from "../components/alertBar/AlertExpires";
+import AlertStateBar from "../components/alertBar/AlertStateBar";
+import AlertTypeBar from "../components/alertBar/AlertTypeBar";
+import AlertAreaBar from "../components/alertBar/AlertAreaBar";
 import { useSearchParams } from "next/navigation";
 import { Menu } from "lucide-react";
 import AppMenu from "../components/menu/AppMenu";
@@ -29,21 +29,28 @@ function AlertOverlayContent() {
   useEffect(() => {
     let isMounted = true;
     async function fetchAlerts() {
-      const res = await fetch(
-        "https://api.weather.gov/alerts/active"
-      );
-      const data = await res.json();
-      if (isMounted) {
-        // Parse the raw alerts
-        const parsedAlerts = parseAlerts(data.features || []);
-        
-        // Apply filters based on query parameters
-        const state = searchParams.get('state') || undefined;
-        const wfo = searchParams.get('wfo') || undefined;
-        const type = searchParams.get('type') || undefined;
-        const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo, type });
-        
-        setAlerts(filteredAlerts);
+      try {
+        const res = await fetch(
+          "https://api.weather.gov/alerts/active"
+        );
+        if (!res.ok) {
+          throw new Error(`Network response was not ok: ${res.status} ${res.statusText}`);
+        }
+        const data = await res.json();
+        if (isMounted) {
+          // Parse the raw alerts
+          const parsedAlerts = parseAlerts(data.features || []);
+          
+          // Apply filters based on query parameters
+          const state = searchParams.get('state') || undefined;
+          const wfo = searchParams.get('wfo') || undefined;
+          const type = searchParams.get('type') || undefined;
+          const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo, type });
+          
+          setAlerts(filteredAlerts);
+        }
+      } catch (error) {
+        console.error('Failed to fetch alerts:', error);
       }
     }
     fetchAlerts();

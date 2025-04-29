@@ -269,4 +269,20 @@ export function filterAlertsByTypes(alerts: NWSAlertGrouped, types: string[]): N
     }
   });
   return result;
-} 
+}
+
+export function getCountiesWithStates(area: string) {
+  return area
+    .split(';')
+    .map((c) => {
+      const match = c.trim().match(/^(.*),\s*([A-Z]{2})$/);
+      if (match) {
+        const name = match[1];
+        const state = match[2];
+        return `${name} (${state})`;
+      }
+      return c.trim();
+    })
+    .filter(Boolean)
+    .join(', ');
+}
