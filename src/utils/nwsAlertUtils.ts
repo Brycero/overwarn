@@ -251,4 +251,22 @@ export function filterAlertsByOffices(alerts: NWSAlertGrouped, offices: string[]
   });
   
   return result;
+}
+
+/**
+ * Filter alerts by alert type(s)
+ * @param alerts Grouped alerts object
+ * @param types Array of alert type keys (e.g., ["TOR", "SVR"])
+ * @returns Filtered alerts object containing only the specified types
+ */
+export function filterAlertsByTypes(alerts: NWSAlertGrouped, types: string[]): NWSAlertGrouped {
+  if (!types.length) return alerts;
+  const typeSet = new Set(types);
+  const result: NWSAlertGrouped = {};
+  Object.entries(alerts).forEach(([alertType, alertsList]) => {
+    if (typeSet.has(alertType)) {
+      result[alertType] = alertsList;
+    }
+  });
+  return result;
 } 

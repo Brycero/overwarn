@@ -1,4 +1,4 @@
-import { filterAlertsByStates, filterAlertsByOffices, NWSAlertGrouped } from './nwsAlertUtils';
+import { filterAlertsByStates, filterAlertsByOffices, NWSAlertGrouped, filterAlertsByTypes } from './nwsAlertUtils';
 
 /**
  * Parses state query parameter into an array of state names/abbreviations
@@ -37,6 +37,20 @@ export function parseWFOParam(wfoParam: string | string[] | undefined): string[]
 }
 
 /**
+ * Parses alert type query parameter into an array of alert type keys
+ * @param typeParam Type parameter from URL query
+ * @returns Array of alert type keys
+ */
+export function parseTypeParam(typeParam: string | string[] | undefined): string[] {
+  if (!typeParam) return [];
+  const typeValues = Array.isArray(typeParam) ? typeParam : [typeParam];
+  return typeValues
+    .flatMap(type => type.split(','))
+    .map(type => type.trim())
+    .filter(Boolean);
+}
+
+/**
  * Apply all query filters to alerts
  * @param alerts The grouped alerts to filter
  * @param params Query parameters object
@@ -47,6 +61,7 @@ export function applyQueryFilters(
   params: {
     state?: string | string[];
     wfo?: string | string[];
+    type?: string | string[];
   }
 ): NWSAlertGrouped {
   let filteredAlerts = { ...alerts };
@@ -61,6 +76,12 @@ export function applyQueryFilters(
   if (params.wfo) {
     const wfos = parseWFOParam(params.wfo);
     filteredAlerts = filterAlertsByOffices(filteredAlerts, wfos);
+  }
+  
+  // Apply type filter if present
+  if (params.type) {
+    const types = parseTypeParam(params.type);
+    filteredAlerts = filterAlertsByTypes(filteredAlerts, types);
   }
   
   return filteredAlerts;

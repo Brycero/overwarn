@@ -40,7 +40,8 @@ function AlertOverlayContent() {
         // Apply filters based on query parameters
         const state = searchParams.get('state') || undefined;
         const wfo = searchParams.get('wfo') || undefined;
-        const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo });
+        const type = searchParams.get('type') || undefined;
+        const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo, type });
         
         setAlerts(filteredAlerts);
       }
