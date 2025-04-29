@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { isZoneBased, getCounties } from "../../utils/nwsAlertUtils";
+import { isZoneBased, getCounties, getStates } from "../../utils/nwsAlertUtils";
 
 type AlertAreaBarProps = {
   area: string | null;
@@ -28,10 +28,19 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
   };
 
   // Compute the actual scroll content string
+  let label = "COUNTIES";
+  let isLouisiana = false;
+  if (area && !isZoneBased(area, geocode)) {
+    const states = getStates(area, geocode).toLowerCase();
+    if (states.includes("louisiana")) {
+      label = "PARISHES";
+      isLouisiana = true;
+    }
+  }
   const scrollContent = area
     ? isZoneBased(area, geocode)
       ? area.toUpperCase()
-      : `COUNTIES: ${getCounties(area).toUpperCase()}`
+      : `${label}: ${getCounties(area).toUpperCase()}`
     : "";
 
   useEffect(() => {

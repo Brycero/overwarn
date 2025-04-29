@@ -273,7 +273,7 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                 handleAllTypes();
               }}
             >
-              All Types
+              All Alerts
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {ALERT_TYPES.filter(type => type.key !== "TOR_EMERGENCY").map((type) => (
