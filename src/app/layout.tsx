@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Overwarn",
-  description: "Real-time weather alert overlay for your live stream",
+  description: "Real-time weather alert overlay for your live stream. Just add a browser source to your streaming software and start streaming.",
 };
 
 export default function RootLayout({

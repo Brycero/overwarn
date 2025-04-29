@@ -192,7 +192,12 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-[300px]" sideOffset={8} align="start">
         <DropdownMenuLabel className="text-lg font-bold text-center py-2">
-          Overwarn
+          <div className="flex items-center justify-center gap-2">
+            Overwarn
+            <span className="bg-muted px-1.5 py-0.5 rounded text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Beta
+            </span>
+          </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
