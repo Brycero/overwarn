@@ -17,7 +17,7 @@ export default function AlertExpires({ expires, isTransitioning }: AlertExpiresP
       }}
     >
       <span className={`transition-all duration-300 inline-block ${isTransitioning && expires ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-        EXPIRES IN {expires ? getExpiresIn(expires) : "-"}
+        {expires ? `EXPIRES IN ${getExpiresIn(expires)}` : ''}
       </span>
     </div>
   );

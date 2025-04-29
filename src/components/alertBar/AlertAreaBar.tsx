@@ -32,7 +32,7 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
     ? isZoneBased(area, geocode)
       ? area.toUpperCase()
       : `COUNTIES: ${getCounties(area).toUpperCase()}`
-    : "-";
+    : "";
 
   useEffect(() => {
     const container = containerRef.current;
