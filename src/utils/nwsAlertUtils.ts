@@ -14,6 +14,7 @@ export type NWSAlertProperties = {
   };
   parameters?: {
     AWIPSidentifier?: string[];
+    tornadoDetection?: string[];
   };
 };
 
@@ -28,9 +29,9 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
     let type: string | null = null;
     if (event.includes("Tornado Warning")) {
       const isPDS = properties.description?.toUpperCase().includes("PARTICULARLY DANGEROUS SITUATION");
-      const isObserved = properties.description?.toUpperCase().includes("OBSERVED") || 
-                        properties.event?.toUpperCase().includes("OBSERVED") ||
-                        properties.headline?.toUpperCase().includes("OBSERVED");
+      const isObserved = properties.parameters?.tornadoDetection?.some(
+        (val) => val.toUpperCase() === "OBSERVED"
+      );
       const isEmergency = properties.description?.toUpperCase().includes("TORNADO EMERGENCY") ||
                          properties.event?.toUpperCase().includes("TORNADO EMERGENCY") ||
                          properties.headline?.toUpperCase().includes("TORNADO EMERGENCY");
