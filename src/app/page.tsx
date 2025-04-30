@@ -45,7 +45,8 @@ function AlertOverlayContent() {
           const state = searchParams.get('state') || undefined;
           const wfo = searchParams.get('wfo') || undefined;
           const type = searchParams.get('type') || undefined;
-          const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo, type });
+          const zone = searchParams.get('zone') || undefined;
+          const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo, type, zone });
           
           setAlerts(filteredAlerts);
         }

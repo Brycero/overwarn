@@ -112,6 +112,22 @@ export function getCounties(area: string) {
     .join(', ');
 }
 
+export function getCountiesWithStates(area: string) {
+  return area
+    .split(';')
+    .map((c) => {
+      const match = c.trim().match(/^(.*),\s*([A-Z]{2})$/);
+      if (match) {
+        const name = match[1];
+        const state = match[2];
+        return `${name} (${state})`;
+      }
+      return c.trim();
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
 export function getExpiresIn(expires: string) {
   const now = new Date();
   const end = new Date(expires);
@@ -272,18 +288,26 @@ export function filterAlertsByTypes(alerts: NWSAlertGrouped, types: string[]): N
   return result;
 }
 
-export function getCountiesWithStates(area: string) {
-  return area
-    .split(';')
-    .map((c) => {
-      const match = c.trim().match(/^(.*),\s*([A-Z]{2})$/);
-      if (match) {
-        const name = match[1];
-        const state = match[2];
-        return `${name} (${state})`;
-      }
-      return c.trim();
-    })
-    .filter(Boolean)
-    .join(', ');
+/**
+ * Filter alerts by UGC zone code(s)
+ * @param alerts Grouped alerts object
+ * @param zones Array of UGC zone codes (e.g., ["TXZ123", "CAZ001"])
+ * @returns Filtered alerts object
+ */
+export function filterAlertsByZones(alerts: NWSAlertGrouped, zones: string[]): NWSAlertGrouped {
+  if (!zones.length) return alerts;
+  // Normalize zone codes to uppercase and trim
+  const normalizedZones = zones.map(z => z.trim().toUpperCase());
+  const result: NWSAlertGrouped = {};
+  Object.entries(alerts).forEach(([alertType, alertsList]) => {
+    const filteredAlerts = alertsList.filter(alert => {
+      const ugcCodes = alert.geocode?.UGC || [];
+      // Return true if any of the normalized zones match this alert's UGC codes
+      return ugcCodes.some(ugc => normalizedZones.includes(ugc.toUpperCase()));
+    });
+    if (filteredAlerts.length > 0) {
+      result[alertType] = filteredAlerts;
+    }
+  });
+  return result;
 }
