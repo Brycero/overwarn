@@ -149,7 +149,7 @@ export function getAlertTimezoneFromHeadline(headline: string) {
 export function formatExpiresTime(expires: string, headline: string) {
   const tz = getAlertTimezoneFromHeadline(headline);
   const dt = DateTime.fromISO(expires, { zone: "utc" }).setZone(tz);
-  return dt.toFormat("MMM dd, h:mm a") + " " + dt.offsetNameShort;
+  return dt.toFormat("EEE h:mma") + " " + dt.offsetNameShort;
 }
 
 /**

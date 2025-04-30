@@ -443,7 +443,7 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="w-full flex items-center gap-2">
             <MoreHorizontal className="w-4 h-4" />
-            <span className="font-medium">More options</span>
+            <span className="font-medium">More Options</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuItem asChild>
