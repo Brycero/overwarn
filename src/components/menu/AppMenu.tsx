@@ -19,11 +19,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { Menu, Search, Clipboard, Check, Bug, Code, Settings as SettingsIcon, MoreHorizontal } from "lucide-react";
+import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal } from "lucide-react";
 import { US_STATES } from "@/config/states";
 import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { NWSOffice, NWSOfficeNames } from "@/types/nwsOffices";
+import { SettingsDialog } from "./Settings";
 
 function formatQueryParams(params: URLSearchParams): string {
   const formattedParams = new URLSearchParams();
@@ -455,15 +456,10 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
             <DropdownMenuItem asChild>
               <a href="https://github.com/brycero/overwarn" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                 <Code className="w-4 h-4" />
-                View GitHub
+                View on GitHub
               </a>
             </DropdownMenuItem>
-            <DropdownMenuItem disabled>
-              <span className="flex items-center gap-2">
-                <SettingsIcon className="w-4 h-4" />
-                Settings (Coming Soon)
-              </span>
-            </DropdownMenuItem>
+            <SettingsDialog />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>
