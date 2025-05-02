@@ -32,7 +32,7 @@ export default function AlertTypeBar({ label, color, isTransitioning }: AlertTyp
       }}
     >
       <span className={`transition-all duration-300 inline-block ${isTransitioning && label ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-        {label || "NO ALERT"}
+        {label || "NO ACTIVE ALERTS"}
       </span>
     </div>
   );

@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from "react";
-import { isZoneBased, getCounties } from "../../utils/nwsAlertUtils";
+import React, { useRef, useEffect, useMemo } from "react";
+import { isZoneBased, getCounties, getStates, getCountiesWithStates } from "../../utils/nwsAlertUtils";
 
 type AlertAreaBarProps = {
   area: string | null;
@@ -27,12 +27,30 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
     }
   };
 
-  // Compute the actual scroll content string
-  const scrollContent = area
-    ? isZoneBased(area, geocode)
-      ? area.toUpperCase()
-      : `COUNTIES: ${getCounties(area).toUpperCase()}`
-    : "-";
+  // Compute the actual scroll content string, memoized to avoid unnecessary recalculation
+  const { scrollContent } = useMemo(() => {
+    let label = "COUNTIES";
+    let scrollContent = "";
+    if (area && !isZoneBased(area, geocode)) {
+      const statesStr = getStates(area, geocode);
+      const statesArr = statesStr.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+      const hasLouisiana = statesArr.includes("louisiana");
+      if (statesArr.length === 1) {
+        if (hasLouisiana) {
+          label = "PARISHES";
+        } else {
+          label = "COUNTIES";
+        }
+        scrollContent = `${label}: ${getCounties(area).toUpperCase()}`;
+      } else if (statesArr.length > 1) {
+        label = hasLouisiana ? "COUNTIES/PARISHES" : "COUNTIES";
+        scrollContent = `${label}: ${getCountiesWithStates(area).toUpperCase()}`;
+      }
+    } else if (area) {
+      scrollContent = area.toUpperCase();
+    }
+    return { label, scrollContent };
+  }, [area, geocode]);
 
   useEffect(() => {
     const container = containerRef.current;

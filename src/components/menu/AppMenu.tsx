@@ -19,10 +19,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { Menu, Search, Clipboard, Check, Bug, Code, Settings as SettingsIcon, MoreHorizontal } from "lucide-react";
+import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal } from "lucide-react";
 import { US_STATES } from "@/config/states";
+import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { NWSOffice, NWSOfficeNames } from "@/types/nwsOffices";
+import { SettingsDialog } from "./Settings";
 
 function formatQueryParams(params: URLSearchParams): string {
   const formattedParams = new URLSearchParams();
@@ -86,6 +88,14 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
   const [officeSearch, setOfficeSearch] = useState("");
 
   const [copied, setCopied] = useState(false);
+
+  // Alert Type filter params
+  const typeParam = searchParams.get("type");
+  const selectedTypes = typeParam
+    ? decodeURIComponent(typeParam)
+        .split(",")
+        .map((type) => type)
+    : [];
 
   const updateURL = (newStates: string[], newOffices: string[]) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -185,6 +195,55 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
     e.stopPropagation();
   };
 
+  // Alert Type filter handlers
+  const handleTypeSelect = (typeKey: string, checked: boolean) => {
+    const types = new Set(selectedTypes);
+    if (checked) {
+      types.add(typeKey);
+    } else {
+      types.delete(typeKey);
+    }
+    updateURLWithTypes(Array.from(types));
+  };
+
+  const handleAllTypes = () => {
+    updateURLWithTypes([]);
+  };
+
+  const getSelectedTypesLabel = () => {
+    if (selectedTypes.length === 0) return "All Types";
+    if (selectedTypes.length === 1) {
+      const type = ALERT_TYPES.find((t) => t.key === selectedTypes[0]);
+      return type
+        ? type.label.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+        : "All Types";
+    }
+    return `${selectedTypes.length} types selected`;
+  };
+
+  // Update URL with all filters
+  const updateURLWithTypes = (newTypes: string[]) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const otherParams = Array.from(params.entries())
+      .filter(
+        ([key]) =>
+          key.toLowerCase() !== "state" &&
+          key.toLowerCase() !== "wfo" &&
+          key.toLowerCase() !== "type"
+      )
+      .map(([key, value]) => `${key}=${value}`);
+    const stateParam = selectedStates.length > 0 ? `state=${selectedStates.join(",")}` : "";
+    const wfoParam = selectedOffices.length > 0 ? `wfo=${selectedOffices.join(",")}` : "";
+    const typeParam = newTypes.length > 0 ? `type=${newTypes.join(",")}` : "";
+    const queryString = [
+      ...(stateParam ? [stateParam] : []),
+      ...(wfoParam ? [wfoParam] : []),
+      ...(typeParam ? [typeParam] : []),
+      ...otherParams,
+    ].join("&");
+    router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
+  };
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -200,6 +259,39 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="w-full">
+            <div className="flex flex-col items-start">
+              <span className="font-medium">Filter by Alert Type</span>
+              <span className="text-sm text-muted-foreground">{getSelectedTypesLabel()}</span>
+            </div>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuItem
+              className="font-medium mt-1"
+              onSelect={(e) => {
+                e.preventDefault();
+                handleAllTypes();
+              }}
+            >
+              All Alerts
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {ALERT_TYPES.filter(type => type.key !== "TOR_EMERGENCY").map((type) => (
+              <DropdownMenuCheckboxItem
+                key={type.key}
+                checked={selectedTypes.includes(type.key)}
+                onCheckedChange={(checked) => handleTypeSelect(type.key, checked)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                <span className={`inline-block w-3 h-3 rounded-full mr-2 align-middle ${type.color}`}></span>
+                {type.label
+                  .toLowerCase()
+                  .replace(/\b\w/g, (c) => c.toUpperCase())}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuGroup>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="w-full">
@@ -352,7 +444,7 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="w-full flex items-center gap-2">
             <MoreHorizontal className="w-4 h-4" />
-            <span className="font-medium">More options</span>
+            <span className="font-medium">More Options</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuItem asChild>
@@ -364,15 +456,10 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
             <DropdownMenuItem asChild>
               <a href="https://github.com/brycero/overwarn" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                 <Code className="w-4 h-4" />
-                View GitHub
+                View on GitHub
               </a>
             </DropdownMenuItem>
-            <DropdownMenuItem disabled>
-              <span className="flex items-center gap-2">
-                <SettingsIcon className="w-4 h-4" />
-                Settings (Coming Soon)
-              </span>
-            </DropdownMenuItem>
+            <SettingsDialog />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>

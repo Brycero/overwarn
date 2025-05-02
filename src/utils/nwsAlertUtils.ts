@@ -14,6 +14,7 @@ export type NWSAlertProperties = {
   };
   parameters?: {
     AWIPSidentifier?: string[];
+    tornadoDetection?: string[];
   };
 };
 
@@ -28,9 +29,9 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
     let type: string | null = null;
     if (event.includes("Tornado Warning")) {
       const isPDS = properties.description?.toUpperCase().includes("PARTICULARLY DANGEROUS SITUATION");
-      const isObserved = properties.description?.toUpperCase().includes("OBSERVED") || 
-                        properties.event?.toUpperCase().includes("OBSERVED") ||
-                        properties.headline?.toUpperCase().includes("OBSERVED");
+      const isObserved = properties.parameters?.tornadoDetection?.some(
+        (val) => val.toUpperCase() === "OBSERVED"
+      );
       const isEmergency = properties.description?.toUpperCase().includes("TORNADO EMERGENCY") ||
                          properties.event?.toUpperCase().includes("TORNADO EMERGENCY") ||
                          properties.headline?.toUpperCase().includes("TORNADO EMERGENCY");
@@ -111,6 +112,22 @@ export function getCounties(area: string) {
     .join(', ');
 }
 
+export function getCountiesWithStates(area: string) {
+  return area
+    .split(';')
+    .map((c) => {
+      const match = c.trim().match(/^(.*),\s*([A-Z]{2})$/);
+      if (match) {
+        const name = match[1];
+        const state = match[2];
+        return `${name} (${state})`;
+      }
+      return c.trim();
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
 export function getExpiresIn(expires: string) {
   const now = new Date();
   const end = new Date(expires);
@@ -148,7 +165,7 @@ export function getAlertTimezoneFromHeadline(headline: string) {
 export function formatExpiresTime(expires: string, headline: string) {
   const tz = getAlertTimezoneFromHeadline(headline);
   const dt = DateTime.fromISO(expires, { zone: "utc" }).setZone(tz);
-  return dt.toFormat("MMM dd, hh:mm a") + " " + dt.offsetNameShort;
+  return dt.toFormat("EEE h:mma") + " " + dt.offsetNameShort;
 }
 
 /**
@@ -251,4 +268,46 @@ export function filterAlertsByOffices(alerts: NWSAlertGrouped, offices: string[]
   });
   
   return result;
-} 
+}
+
+/**
+ * Filter alerts by alert type(s)
+ * @param alerts Grouped alerts object
+ * @param types Array of alert type keys (e.g., ["TOR", "SVR"])
+ * @returns Filtered alerts object containing only the specified types
+ */
+export function filterAlertsByTypes(alerts: NWSAlertGrouped, types: string[]): NWSAlertGrouped {
+  if (!types.length) return alerts;
+  const typeSet = new Set(types);
+  const result: NWSAlertGrouped = {};
+  Object.entries(alerts).forEach(([alertType, alertsList]) => {
+    if (typeSet.has(alertType)) {
+      result[alertType] = alertsList;
+    }
+  });
+  return result;
+}
+
+/**
+ * Filter alerts by UGC zone code(s)
+ * @param alerts Grouped alerts object
+ * @param zones Array of UGC zone codes (e.g., ["TXZ123", "CAZ001"])
+ * @returns Filtered alerts object
+ */
+export function filterAlertsByZones(alerts: NWSAlertGrouped, zones: string[]): NWSAlertGrouped {
+  if (!zones.length) return alerts;
+  // Normalize zone codes to uppercase and trim
+  const normalizedZones = zones.map(z => z.trim().toUpperCase());
+  const result: NWSAlertGrouped = {};
+  Object.entries(alerts).forEach(([alertType, alertsList]) => {
+    const filteredAlerts = alertsList.filter(alert => {
+      const ugcCodes = alert.geocode?.UGC || [];
+      // Return true if any of the normalized zones match this alert's UGC codes
+      return ugcCodes.some(ugc => normalizedZones.includes(ugc.toUpperCase()));
+    });
+    if (filteredAlerts.length > 0) {
+      result[alertType] = filteredAlerts;
+    }
+  });
+  return result;
+}

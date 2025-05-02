@@ -19,7 +19,7 @@ export default function AlertStateBar({ area, geocode, expires, headline, isTran
       }}
     >
       <span className={`transition-all duration-300 inline-block ${isTransitioning && area ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
-        {area && expires && headline ? `${getStates(area, geocode)} | EXPIRES: ${formatExpiresTime(expires, headline)}` : "-"}
+        {area && expires && headline ? `${getStates(area, geocode)} - UNTIL ${formatExpiresTime(expires, headline)}` : ''}
       </span>
     </div>
   );

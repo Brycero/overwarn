@@ -29,20 +29,29 @@ function AlertOverlayContent() {
   useEffect(() => {
     let isMounted = true;
     async function fetchAlerts() {
-      const res = await fetch(
-        "https://api.weather.gov/alerts/active"
-      );
-      const data = await res.json();
-      if (isMounted) {
-        // Parse the raw alerts
-        const parsedAlerts = parseAlerts(data.features || []);
-        
-        // Apply filters based on query parameters
-        const state = searchParams.get('state') || undefined;
-        const wfo = searchParams.get('wfo') || undefined;
-        const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo });
-        
-        setAlerts(filteredAlerts);
+      try {
+        const res = await fetch(
+          "https://api.weather.gov/alerts/active"
+        );
+        if (!res.ok) {
+          throw new Error(`Network response was not ok: ${res.status} ${res.statusText}`);
+        }
+        const data = await res.json();
+        if (isMounted) {
+          // Parse the raw alerts
+          const parsedAlerts = parseAlerts(data.features || []);
+          
+          // Apply filters based on query parameters
+          const state = searchParams.get('state') || undefined;
+          const wfo = searchParams.get('wfo') || undefined;
+          const type = searchParams.get('type') || undefined;
+          const zone = searchParams.get('zone') || undefined;
+          const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo, type, zone });
+          
+          setAlerts(filteredAlerts);
+        }
+      } catch (error) {
+        console.error('Failed to fetch alerts:', error);
       }
     }
     fetchAlerts();
