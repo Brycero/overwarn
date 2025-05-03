@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from "react";
+import React, { useRef, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
 import { isZoneBased, getCounties, getStates, getCountiesWithStates } from "../../utils/nwsAlertUtils";
 
 type AlertAreaBarProps = {
@@ -6,9 +6,15 @@ type AlertAreaBarProps = {
   geocode?: { UGC?: string[] };
   isTransitioning: boolean;
   color: string;
+  scrollDuration: number; // ms
+  bufferTime: number; // ms
+  startScroll: boolean;
+  onMeasureScroll?: (info: { scrollDistance: number; needsScroll: boolean }) => void;
 };
 
-export default function AlertAreaBar({ area, geocode, isTransitioning, color }: AlertAreaBarProps) {
+const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function AlertAreaBar({
+  area, geocode, isTransitioning, color, scrollDuration, bufferTime, startScroll, onMeasureScroll
+}, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
 
@@ -52,44 +58,62 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
     return { label, scrollContent };
   }, [area, geocode]);
 
+  // Expose measureScroll to parent after render
   useEffect(() => {
     const container = containerRef.current;
     const content = spanRef.current;
     if (!container || !content) return;
+    // Account for container horizontal padding
+    const style = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(style.paddingLeft) || 0;
+    const paddingRight = parseFloat(style.paddingRight) || 0;
+    const totalPadding = paddingLeft + paddingRight;
+    const scrollDistance = content.scrollWidth - (container.clientWidth - totalPadding);
+    const needsScroll = content.scrollWidth > container.clientWidth;
+    if (onMeasureScroll) {
+      onMeasureScroll({ scrollDistance, needsScroll });
+    }
+  }, [area, geocode, scrollContent, onMeasureScroll]);
 
-    // Reset scroll position
+  // Scroll animation controlled by parent
+  useEffect(() => {
+    const container = containerRef.current;
+    const content = spanRef.current;
+    if (!container || !content) return;
+    // Always reset scroll position
     container.scrollLeft = 0;
-
-    // Check for overflow
-    if (content.scrollWidth > container.clientWidth) {
-      let start: number | null = null;
-      // Determine scroll duration based on county count
-      let duration = 10000; // 10 seconds default
-      if (area && !isZoneBased(area, geocode)) {
-        const counties = getCounties(area);
-        const countyCount = counties.split(',').length;
-        if (countyCount > 8) {
-          duration = 15000; // 15 seconds for long county lists
-        }
-      }
-      const maxScroll = container.scrollWidth - container.clientWidth;
-      let animationFrameId: number;
-
+    let animationFrameId: number;
+    let start: number | null = null;
+    let scrollDistance = 0;
+    // Account for container horizontal padding
+    const style = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(style.paddingLeft) || 0;
+    const paddingRight = parseFloat(style.paddingRight) || 0;
+    const totalPadding = paddingLeft + paddingRight;
+    scrollDistance = content.scrollWidth - (container.clientWidth - totalPadding);
+    if (!startScroll || scrollDistance <= 0) return;
+    // Start scroll after bufferTime
+    const scrollStartTimeout = setTimeout(() => {
       function step(timestamp: number) {
         if (!container) return;
         if (!start) start = timestamp;
         const elapsed = timestamp - start;
-        const progress = Math.min(elapsed / duration, 1);
-        container.scrollLeft = progress * maxScroll;
+        const progress = Math.min(elapsed / scrollDuration, 1);
+        container.scrollLeft = progress * scrollDistance;
         if (progress < 1) {
           animationFrameId = requestAnimationFrame(step);
         }
       }
       animationFrameId = requestAnimationFrame(step);
-      // Cleanup to cancel animation if content changes mid-scroll
-      return () => cancelAnimationFrame(animationFrameId);
-    }
-  }, [area, geocode, scrollContent]);
+    }, bufferTime);
+    // Cleanup
+    return () => {
+      clearTimeout(scrollStartTimeout);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [area, geocode, scrollContent, startScroll, scrollDuration, bufferTime]);
+
+  useImperativeHandle(ref, () => containerRef.current as HTMLDivElement);
 
   return (
     <div
@@ -111,4 +135,6 @@ export default function AlertAreaBar({ area, geocode, isTransitioning, color }: 
       </span>
     </div>
   );
-}
+});
+
+export default AlertAreaBar;
