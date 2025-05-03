@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef, Suspense, useMemo } from "react";
 import { Geist } from "next/font/google";
 import { ALERT_TYPES, colorMap } from "../config/alertConfig";
-import { parseAlerts, NWSAlertGrouped, NWSAlertProperties, isZoneBased, getCounties } from "../utils/nwsAlertUtils";
+import { parseAlerts, NWSAlertGrouped, NWSAlertProperties } from "../utils/nwsAlertUtils";
 import { applyQueryFilters } from "../utils/queryParamUtils";
 import AlertExpires from "../components/alertBar/AlertExpires";
 import AlertStateBar from "../components/alertBar/AlertStateBar";
@@ -17,11 +17,22 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+// Type for the alert objects used in the overlay display
+type AlertDisplay = {
+  label: string;
+  color: string;
+  headline: string;
+  area: string;
+  expires: string;
+  geocode: NWSAlertProperties["geocode"];
+  parameters: NWSAlertProperties["parameters"];
+};
+
 function AlertOverlayContent() {
   const [alerts, setAlerts] = useState<NWSAlertGrouped>({});
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [currentAlert, setCurrentAlert] = useState<any>(null);
+  const [currentAlert, setCurrentAlert] = useState<AlertDisplay | null>(null);
   const [scrollInfo, setScrollInfo] = useState<{ scrollDistance: number; needsScroll: boolean }>({ scrollDistance: 0, needsScroll: false });
   const [startScroll, setStartScroll] = useState(false);
   const [scrollDuration, setScrollDuration] = useState(0);

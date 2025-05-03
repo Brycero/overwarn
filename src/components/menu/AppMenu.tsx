@@ -25,7 +25,7 @@ import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { NWSOffice, NWSOfficeNames } from "@/types/nwsOffices";
 import { SettingsDialog } from "./Settings";
-import { parseAlerts, NWSAlertGrouped } from "@/utils/nwsAlertUtils";
+import { parseAlerts } from "@/utils/nwsAlertUtils";
 import { applyQueryFilters } from "@/utils/queryParamUtils";
 
 function formatQueryParams(params: URLSearchParams): string {
@@ -269,7 +269,7 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
         }
         if (isMounted) setAlertCounts(counts);
       } catch (e) {
-        // ignore
+        console.error('Failed to fetch alerts:', e);
       }
     }
     fetchAlerts();
