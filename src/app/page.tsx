@@ -1,9 +1,9 @@
 "use client";
 import React, { useEffect, useState, useRef, Suspense, useMemo } from "react";
 import { Geist } from "next/font/google";
-import { ALERT_TYPES, colorMap } from "../config/alertConfig";
+import { ALERT_TYPES } from "../config/alertConfig";
 import { parseAlerts, NWSAlertGrouped, NWSAlertProperties } from "../utils/nwsAlertUtils";
-import { applyQueryFilters } from "../utils/queryParamUtils";
+import { applyQueryFilters, parseColorsParam } from "../utils/queryParamUtils";
 import AlertExpires from "../components/alertBar/AlertExpires";
 import AlertStateBar from "../components/alertBar/AlertStateBar";
 import AlertTypeBar from "../components/alertBar/AlertTypeBar";
@@ -28,6 +28,26 @@ type AlertDisplay = {
   parameters: NWSAlertProperties["parameters"];
 };
 
+// Tailwind class to hex code mapping
+const TAILWIND_TO_HEX: Record<string, string> = {
+  "bg-red-600": "#dc2626",
+  "bg-yellow-500": "#eab308",
+  "bg-green-500": "#22c55e",
+  "bg-blue-500": "#3b82f6",
+  "bg-pink-500": "#ec4899",
+  "bg-orange-500": "#f97316",
+  "bg-purple-600": "#9333ea",
+  "bg-neutral-700": "#404040",
+  "bg-red-400": "#f87171",
+  "bg-yellow-300": "#fde047",
+  "bg-green-300": "#86efac",
+  "bg-blue-300": "#93c5fd",
+  "bg-pink-300": "#f9a8d4",
+  "bg-orange-300": "#fdba74",
+  "bg-purple-400": "#c084fc",
+  "bg-neutral-500": "#737373",
+};
+
 function AlertOverlayContent() {
   const [alerts, setAlerts] = useState<NWSAlertGrouped>({});
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -42,6 +62,26 @@ function AlertOverlayContent() {
   const lastAlertKey = useRef<string | null>(null);
   const alertsLengthRef = useRef<number>(0);
   const searchParams = useSearchParams();
+
+  // --- Custom Color Logic ---
+  // Parse user color overrides from query string
+  const userColors = useMemo(() => {
+    const colorsParam = searchParams.get("colors") || undefined;
+    return parseColorsParam(colorsParam);
+  }, [searchParams]);
+
+  // Merge ALERT_TYPES with userColors for color assignment (hex code)
+  const mergedAlertTypes = useMemo(() => {
+    return ALERT_TYPES.map((type) => {
+      // If user override, use that hex; otherwise, convert Tailwind to hex
+      const hex = userColors[type.key] || TAILWIND_TO_HEX[type.color] || "#404040";
+      return {
+        ...type,
+        color: hex,
+        _originalColor: type.color, // keep for area bar light color
+      };
+    });
+  }, [userColors]);
 
   useEffect(() => {
     let isMounted = true;
@@ -79,21 +119,21 @@ function AlertOverlayContent() {
     };
   }, [searchParams]);
 
-  // Flatten all alerts for cycling
-  const allAlerts = useMemo(() => ALERT_TYPES.flatMap(({ key, label, color }) =>
+  // Flatten all alerts for cycling, using mergedAlertTypes
+  const allAlerts = useMemo(() => mergedAlertTypes.flatMap(({ key, label, color }) =>
     (alerts[key] || []).map((a: NWSAlertProperties) => ({
       label: (a.event.startsWith("PDS") ? "PDS " : "") +
         (a.event.includes("OBSERVED") ? "OBSERVED " : "") +
         (a.event.includes("EMERGENCY") ? "EMERGENCY " : "") +
         label,
-      color,
+      color, // always hex
       headline: a.headline,
       area: a.areaDesc,
       expires: a.ends,
       geocode: a.geocode,
       parameters: a.parameters,
     }))
-  ), [alerts]);
+  ), [alerts, mergedAlertTypes]);
 
   // Update alerts length ref when allAlerts changes
   useEffect(() => {
@@ -187,8 +227,9 @@ function AlertOverlayContent() {
     }
   }, [allAlerts]);
 
+  // Use the merged colorMap for the current alert
   const alert = currentAlert;
-  const alertColor = alert ? colorMap[alert.color] || colorMap["default"] : colorMap["default"];
+  // Pass hex code to AlertTypeBar and AlertAreaBar
 
   return (
     <div className={`fixed bottom-0 left-0 w-full z-50 ${geistSans.variable}`} style={{ fontFamily: 'var(--font-geist-sans), Arial, sans-serif' }}>
@@ -198,13 +239,13 @@ function AlertOverlayContent() {
         {/* Top Right: State | Expires Time */}
         <AlertStateBar area={alert ? alert.area : null} geocode={alert ? alert.geocode : undefined} expires={alert ? alert.expires : null} headline={alert ? alert.headline : null} isTransitioning={isTransitioning} />
         {/* Bottom Left: Alert Type */}
-        <AlertTypeBar label={alert ? alert.label : null} color={alertColor.base} isTransitioning={isTransitioning} />
+        <AlertTypeBar label={alert ? alert.label : null} color={alert ? alert.color : "#404040"} isTransitioning={isTransitioning} />
         {/* Bottom Right: Counties or Area */}
         <AlertAreaBar
           area={alert ? alert.area : null}
           geocode={alert ? alert.geocode : undefined}
           isTransitioning={isTransitioning}
-          color={alertColor.light}
+          color={alert ? alert.color : "#737373"}
           scrollDuration={scrollDuration}
           bufferTime={bufferTime}
           startScroll={startScroll}

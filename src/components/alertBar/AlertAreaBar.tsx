@@ -1,5 +1,54 @@
 import React, { useRef, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
 import { isZoneBased, getCounties, getStates, getCountiesWithStates } from "../../utils/nwsAlertUtils";
+import { colorMap } from "../../config/alertConfig";
+
+const TAILWIND_TO_HEX: Record<string, string> = {
+  "bg-red-600": "#dc2626",
+  "bg-yellow-500": "#eab308",
+  "bg-green-500": "#22c55e",
+  "bg-blue-500": "#3b82f6",
+  "bg-pink-500": "#ec4899",
+  "bg-orange-500": "#f97316",
+  "bg-purple-600": "#9333ea",
+  "bg-neutral-700": "#404040",
+  "bg-red-400": "#f87171",
+  "bg-yellow-300": "#fde047",
+  "bg-green-300": "#86efac",
+  "bg-blue-300": "#93c5fd",
+  "bg-pink-300": "#f9a8d4",
+  "bg-orange-300": "#fdba74",
+  "bg-purple-400": "#c084fc",
+  "bg-neutral-500": "#737373",
+};
+
+// Utility to lighten a hex color by a given percent (0-100)
+function lightenHexColor(hex: string, percent = 20): string {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) {
+    hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  }
+  if (hex.length !== 6) return '#' + hex;
+  const amt = Math.round(2.55 * percent);
+  const R = Math.min(255, parseInt(hex.substring(0,2),16) + amt);
+  const G = Math.min(255, parseInt(hex.substring(2,4),16) + amt);
+  const B = Math.min(255, parseInt(hex.substring(4,6),16) + amt);
+  return `#${R.toString(16).padStart(2,'0')}${G.toString(16).padStart(2,'0')}${B.toString(16).padStart(2,'0')}`;
+}
+
+function getLightAreaBarColor(color: string): string {
+  // If color matches a Tailwind hex, use the mapped light color
+  const tailwindEntry = Object.entries(TAILWIND_TO_HEX).find(([, hex]) => hex.toLowerCase() === color.toLowerCase());
+  if (tailwindEntry) {
+    // Find the base class (e.g. bg-red-600) and get its light variant from colorMap
+    const baseClass = tailwindEntry[0];
+    const lightClass = colorMap[baseClass]?.light;
+    if (lightClass && TAILWIND_TO_HEX[lightClass]) {
+      return TAILWIND_TO_HEX[lightClass];
+    }
+  }
+  // Otherwise, lighten the custom hex by 20%
+  return lightenHexColor(color, 20);
+}
 
 type AlertAreaBarProps = {
   area: string | null;
@@ -17,21 +66,6 @@ const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function Aler
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
-
-  // Convert Tailwind classes to CSS background colors
-  const getBgColor = (tailwindClass: string) => {
-    switch (tailwindClass) {
-      case "bg-red-400": return "#f87171";
-      case "bg-yellow-300": return "#fde047";
-      case "bg-green-300": return "#86efac";
-      case "bg-blue-300": return "#93c5fd";
-      case "bg-pink-300": return "#f9a8d4";
-      case "bg-orange-300": return "#fdba74";
-      case "bg-purple-400": return "#c084fc";
-      case "bg-neutral-500": return "#737373";
-      default: return "#737373";
-    }
-  };
 
   // Compute the actual scroll content string, memoized to avoid unnecessary recalculation
   const { scrollContent } = useMemo(() => {
@@ -57,6 +91,9 @@ const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function Aler
     }
     return { label, scrollContent };
   }, [area, geocode]);
+
+  // Use getLightAreaBarColor for the background
+  const bgColor = useMemo(() => getLightAreaBarColor(color), [color]);
 
   // Expose measureScroll to parent after render
   useEffect(() => {
@@ -122,7 +159,7 @@ const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function Aler
       style={{ 
         textShadow: '1px 1px 4px rgba(0,0,0,0.7)', 
         overflowX: 'auto',
-        backgroundColor: getBgColor(color),
+        backgroundColor: bgColor,
         transition: 'background-color 0.3s'
       }}
     >

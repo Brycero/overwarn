@@ -1,5 +1,6 @@
 // Utility functions for parsing and handling NWS alerts
 import { DateTime } from "luxon";
+import { US_STATES } from "../config/states";
 
 export type NWSAlertProperties = {
   event: string;
@@ -74,15 +75,8 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
   return grouped;
 }
 
-const STATE_MAP: { [abbr: string]: string } = {
-  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", PR: "Puerto Rico", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming"
-};
-
-// Inverted map for lookups by full state name
-const STATE_NAME_TO_ABBR: { [name: string]: string } = Object.entries(STATE_MAP).reduce(
-  (acc, [abbr, name]) => ({ ...acc, [name.toLowerCase()]: abbr }), 
-  {} as { [name: string]: string }
-);
+const STATE_MAP = Object.fromEntries(US_STATES.map(({ code, name }) => [code, name]));
+const STATE_NAME_TO_ABBR = Object.fromEntries(US_STATES.map(({ code, name }) => [name.toLowerCase(), code]));
 
 export function getStates(area: string, geocode?: { UGC?: string[] }) {
   const areaMatches = area.match(/,\s*([A-Z]{2})/g) || [];

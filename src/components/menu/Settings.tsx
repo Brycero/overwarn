@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useRef, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense, useReducer } from "react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "../ui/dialog";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, FlaskConical } from "lucide-react";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "../ui/select";
+import { Button } from "../ui/button";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { ALERT_TYPES } from "../../config/alertConfig";
+import { parseColorsParam, serializeColorsParam } from "../../utils/queryParamUtils";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "../ui/accordion";
 
 const FONT_OPTIONS = [
   { label: "Default", value: "default" },
@@ -13,17 +17,47 @@ const FONT_OPTIONS = [
   { label: "Monospace", value: "monospace" },
 ];
 
+// Tailwind class to hex code mapping for ALERT_TYPES
+const TAILWIND_TO_HEX: Record<string, string> = {
+  "bg-red-600": "#dc2626",
+  "bg-yellow-500": "#eab308",
+  "bg-green-500": "#22c55e",
+  "bg-blue-500": "#3b82f6",
+  "bg-pink-500": "#ec4899",
+  "bg-orange-500": "#f97316",
+  "bg-purple-600": "#9333ea",
+  "bg-neutral-700": "#404040",
+};
+
 export function SettingsDialog() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Forcing re-render on dialog open/close
+  const [, forceRender] = useReducer((x) => x + 1, 0);
+
   // Initialize from current query param
   const zoneParam = searchParams.get("zone") || "";
   const [zoneInput, setZoneInput] = useState(zoneParam);
   const [showAlerts, setShowAlerts] = useState(false);
   const [font, setFont] = useState(FONT_OPTIONS[0].value);
+
+  // --- Alert Color Customization ---
+  const colorsParam = searchParams.get("colors") || undefined;
+  // Use a ref to stage color changes
+  const stagedColors = useRef<Record<string, string>>(parseColorsParam(colorsParam));
+
+  // When dialog opens, re-initialize stagedColors from query param
+  const dialogOpenRef = useRef(false);
+  const handleDialogOpenChange = (open: boolean) => {
+    if (open) {
+      stagedColors.current = parseColorsParam(searchParams.get("colors") || undefined);
+    }
+    dialogOpenRef.current = open;
+    forceRender();
+  };
 
   // Keep input in sync with query param if it changes externally
   useEffect(() => {
@@ -56,6 +90,31 @@ export function SettingsDialog() {
     setZoneInput(sanitized); // reflect sanitized value in input
   };
 
+  // Handle color change for a specific alert type (staged only)
+  const handleColorChange = (key: string, hex: string) => {
+    stagedColors.current = { ...stagedColors.current, [key]: hex };
+    forceRender();
+  };
+
+  // Reset to default colors (staged only)
+  const handleResetColors = () => {
+    stagedColors.current = {};
+    forceRender();
+  };
+
+  // Update the 'colors' param in the URL (called only on dialog close)
+  const commitColorsToUrl = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    const serialized = serializeColorsParam(stagedColors.current);
+    if (serialized) {
+      params.set("colors", serialized);
+    } else {
+      params.delete("colors");
+    }
+    const queryString = params.toString().replace(/%2C/g, ",");
+    router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
+  };
+
   // Handle submit (Enter) or blur
   const handleZoneInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -76,8 +135,8 @@ export function SettingsDialog() {
 
   return (
     <Suspense fallback={null}>
-      <Dialog>
-        <DropdownMenuItem asChild onSelect={e => e.preventDefault()} disabled>
+      <Dialog onOpenChange={handleDialogOpenChange}>
+        <DropdownMenuItem asChild onSelect={e => e.preventDefault()}>
           <DialogTrigger asChild>
             <button type="button" className="w-full flex items-center gap-2">
               <SettingsIcon className="w-4 h-4" />
@@ -86,7 +145,7 @@ export function SettingsDialog() {
             </button>
           </DialogTrigger>
         </DropdownMenuItem>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <SettingsIcon className="w-5 h-5" /> Settings
@@ -121,6 +180,7 @@ export function SettingsDialog() {
                 id="show-alerts-checkbox"
                 checked={showAlerts}
                 onCheckedChange={checked => setShowAlerts(!!checked)}
+                disabled
               />
               <label htmlFor="show-alerts-checkbox" className="text-sm font-medium select-none">
                 Show new alerts immediately
@@ -134,6 +194,7 @@ export function SettingsDialog() {
               <Select
                 value={font}
                 onValueChange={setFont}
+                disabled
               >
                 <SelectTrigger className="w-full rounded-md border px-3 py-2 text-sm bg-background">
                   <SelectValue placeholder="Select font" />
@@ -148,12 +209,87 @@ export function SettingsDialog() {
               </Select>
               <span className="ml-2 bg-muted px-1.5 py-0.5 rounded text-xs font-medium text-muted-foreground uppercase tracking-wider">Coming Soon</span>
             </div>
+            <Accordion type="single" collapsible className="border rounded-md bg-muted/30">
+              <AccordionItem value="alert-colors">
+                <AccordionTrigger className="px-2 text-sm font-medium flex items-center gap-2 ml-2">
+                  Custom Colors
+                  <span className="flex items-center gap-1 ml-auto text-muted-foreground text-xs font-medium uppercase">
+                    <FlaskConical className="w-4 h-4 text-muted-foreground" />
+                    Experimental
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3">
+                    {ALERT_TYPES.map(type => (
+                      <div
+                        key={type.key}
+                        className="flex items-center gap-4 pl-4 py-2 rounded-md bg-background hover:bg-muted/50 transition-colors"
+                      >
+                        <span className="w-44 text-sm font-semibold text-left">{type.label}</span>
+                        <input
+                          type="color"
+                          value={stagedColors.current[type.key] || TAILWIND_TO_HEX[type.color] || "#404040"}
+                          onChange={e => handleColorChange(type.key, e.target.value)}
+                          className="w-8 h-8 border rounded shadow-sm"
+                          aria-label={`Color for ${type.label}`}
+                        />
+                        <input
+                          type="text"
+                          value={stagedColors.current[type.key] || TAILWIND_TO_HEX[type.color] || "#404040"}
+                          onChange={e => {
+                            const val = e.target.value;
+                            // Only update if valid hex (allow #RGB or #RRGGBB)
+                            if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(val)) {
+                              handleColorChange(type.key, val);
+                            } else {
+                              // Allow user to type, but don't update color until valid
+                              stagedColors.current = { ...stagedColors.current, [type.key]: val };
+                              forceRender();
+                            }
+                          }}
+                          onBlur={e => {
+                            const val = e.target.value;
+                            if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(val)) {
+                              // Revert to last valid color
+                              stagedColors.current = { ...stagedColors.current, [type.key]: stagedColors.current[type.key] || TAILWIND_TO_HEX[type.color] || "#404040" };
+                              forceRender();
+                            }
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          className="ml-2 w-24 px-2 py-1 text-xs rounded border bg-background text-muted-foreground focus:text-foreground focus:border-primary outline-none transition-colors"
+                          aria-label={`Hex code for ${type.label}`}
+                          spellCheck={false}
+                          maxLength={7}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    className="mt-2 px-3 py-1 text-xs font-medium ml-4"
+                    variant="outline"
+                    onClick={handleResetColors}
+                  >
+                    Reset to Default
+                  </Button>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </form>
           <DialogFooter>
             <DialogClose asChild>
-              <button type="button" className="mt-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+              <Button
+                type="button"
+                className="mt-2"
+                variant="default"
+                onClick={commitColorsToUrl}
+              >
                 Close
-              </button>
+              </Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>

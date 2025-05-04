@@ -6,6 +6,7 @@ export const US_STATES = [
   { code: "CA", name: "California" },
   { code: "CO", name: "Colorado" },
   { code: "CT", name: "Connecticut" },
+  { code: "DC", name: "District of Columbia" },
   { code: "DE", name: "Delaware" },
   { code: "FL", name: "Florida" },
   { code: "GA", name: "Georgia" },

@@ -65,6 +65,49 @@ export function parseZoneParam(zoneParam: string | string[] | undefined): string
 }
 
 /**
+ * Parses the 'colors' query parameter into an object mapping alert type keys to hex codes.
+ * @param colorsParam The 'colors' query parameter from the URL
+ * @returns Object mapping alert type keys to hex codes
+ */
+export function parseColorsParam(colorsParam: string | string[] | undefined): Record<string, string> {
+  if (!colorsParam) return {};
+  const param = Array.isArray(colorsParam) ? colorsParam[0] : colorsParam;
+  if (!param) return {};
+  return param.split(',').reduce((acc, pair) => {
+    const [key, value] = pair.split(':');
+    if (key && value && /^#[0-9A-Fa-f]{3,6}$/.test(value)) {
+      acc[key] = normalizeHex(value);
+    }
+    return acc;
+  }, {} as Record<string, string>);
+}
+
+/**
+ * Serializes an object mapping alert type keys to hex codes into a 'colors' query parameter string.
+ * @param colorsObj Object mapping alert type keys to hex codes
+ * @returns Query parameter string (e.g., 'TOR:#3b82f6,SVR:#eab308')
+ */
+export function serializeColorsParam(colorsObj: Record<string, string>): string {
+  return Object.entries(colorsObj)
+    .filter(([, value]) => /^#[0-9A-Fa-f]{3,6}$/.test(value))
+    .map(([key, value]) => `${key}:${normalizeHex(value)}`)
+    .join(',');
+}
+
+/**
+ * Normalizes a hex color string to 6-digit format (e.g., #123 -> #112233)
+ * @param hex Hex color string
+ * @returns 6-digit hex color string
+ */
+function normalizeHex(hex: string): string {
+  if (/^#[0-9A-Fa-f]{3}$/.test(hex)) {
+    // Expand 3-digit hex to 6-digit
+    return '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+  }
+  return hex;
+}
+
+/**
  * Apply all query filters to alerts
  * @param alerts The grouped alerts to filter
  * @param params Query parameters object
