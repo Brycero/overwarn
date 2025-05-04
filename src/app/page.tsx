@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef, Suspense, useMemo } from "react";
 import { Geist } from "next/font/google";
 import { ALERT_TYPES, colorMap } from "../config/alertConfig";
-import { parseAlerts, NWSAlertGrouped, NWSAlertProperties, isZoneBased, getCounties } from "../utils/nwsAlertUtils";
+import { parseAlerts, NWSAlertGrouped, NWSAlertProperties } from "../utils/nwsAlertUtils";
 import { applyQueryFilters } from "../utils/queryParamUtils";
 import AlertExpires from "../components/alertBar/AlertExpires";
 import AlertStateBar from "../components/alertBar/AlertStateBar";
@@ -17,10 +17,27 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+// Type for the alert objects used in the overlay display
+type AlertDisplay = {
+  label: string;
+  color: string;
+  headline: string;
+  area: string;
+  expires: string;
+  geocode: NWSAlertProperties["geocode"];
+  parameters: NWSAlertProperties["parameters"];
+};
+
 function AlertOverlayContent() {
   const [alerts, setAlerts] = useState<NWSAlertGrouped>({});
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [currentAlert, setCurrentAlert] = useState<AlertDisplay | null>(null);
+  const [scrollInfo, setScrollInfo] = useState<{ scrollDistance: number; needsScroll: boolean }>({ scrollDistance: 0, needsScroll: false });
+  const [startScroll, setStartScroll] = useState(false);
+  const [scrollDuration, setScrollDuration] = useState(0);
+  const [bufferTime] = useState(2000); // ms
+  const [displayDuration, setDisplayDuration] = useState(5000); // ms
   const transitionTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastAlertKey = useRef<string | null>(null);
   const alertsLengthRef = useRef<number>(0);
@@ -83,24 +100,58 @@ function AlertOverlayContent() {
     alertsLengthRef.current = allAlerts.length;
   }, [allAlerts]);
 
+  // Memoize current alert: only update if key fields change
+  useEffect(() => {
+    const next: typeof allAlerts[number] | null = allAlerts[currentIdx] || null;
+    setCurrentAlert((prev: typeof allAlerts[number] | null) => {
+      if (!prev && !next) return null;
+      if (!prev || !next) return next;
+      // Compare key fields
+      if (
+        prev.headline !== next.headline ||
+        prev.area !== next.area ||
+        prev.expires !== next.expires
+      ) {
+        return next;
+      }
+      return prev;
+    });
+  }, [allAlerts, currentIdx]);
+
   function getAlertKey(alert: { headline: string; area: string; expires: string } | null) {
     if (!alert) return '';
     return `${alert.headline}|${alert.area}|${alert.expires}`;
   }
 
+  // Compute a stable key for the current alert
+  const alertKey = currentAlert ? getAlertKey(currentAlert) : '';
+
+  // When scrollInfo changes, recalculate durations
+  useEffect(() => {
+    const minReadingSpeed = 80; // px/sec
+    let scrollDur = 0;
+    let totalDisplay = 5000;
+    if (scrollInfo.needsScroll && scrollInfo.scrollDistance > 0) {
+      scrollDur = (scrollInfo.scrollDistance / minReadingSpeed) * 1000;
+      totalDisplay = scrollDur + bufferTime * 2;
+    } else {
+      totalDisplay = 5000; // 5s for short lists
+      scrollDur = 0;
+    }
+    setScrollDuration(scrollDur);
+    setDisplayDuration(totalDisplay);
+  }, [scrollInfo, bufferTime]);
+
+  // Control scroll and cycling
   useEffect(() => {
     if (alertsLengthRef.current <= 1) return;
-    // Determine display duration based on county count
-    const currentAlert = allAlerts[currentIdx];
-    let displayDuration = 10000; // default 10s
-    if (currentAlert && !isZoneBased(currentAlert.area, currentAlert.geocode)) {
-      const counties = getCounties(currentAlert.area);
-      const countyCount = counties.split(',').length;
-      if (countyCount > 8) {
-        displayDuration = 15000; // 15s for long county lists
-      }
-    }
-    const interval = setInterval(() => {
+    setStartScroll(false); // reset scroll
+    // Start scroll after a short delay to ensure AlertAreaBar is rendered
+    const scrollStart = setTimeout(() => {
+      setStartScroll(true);
+    }, 50); // 50ms delay to allow DOM update
+    // Advance to next alert after displayDuration
+    const interval = setTimeout(() => {
       setIsTransitioning(true);
       transitionTimeout.current = setTimeout(() => {
         setCurrentIdx((idx) => (idx + 1) % alertsLengthRef.current);
@@ -108,10 +159,11 @@ function AlertOverlayContent() {
       }, 300);
     }, displayDuration);
     return () => {
-      clearInterval(interval);
+      clearTimeout(scrollStart);
+      clearTimeout(interval);
       if (transitionTimeout.current) clearTimeout(transitionTimeout.current);
     };
-  }, [currentIdx, allAlerts]);
+  }, [alertKey, displayDuration]);
 
   useEffect(() => {
     setIsTransitioning(false);
@@ -135,7 +187,7 @@ function AlertOverlayContent() {
     }
   }, [allAlerts]);
 
-  const alert = allAlerts[currentIdx] || null;
+  const alert = currentAlert;
   const alertColor = alert ? colorMap[alert.color] || colorMap["default"] : colorMap["default"];
 
   return (
@@ -148,7 +200,16 @@ function AlertOverlayContent() {
         {/* Bottom Left: Alert Type */}
         <AlertTypeBar label={alert ? alert.label : null} color={alertColor.base} isTransitioning={isTransitioning} />
         {/* Bottom Right: Counties or Area */}
-        <AlertAreaBar area={alert ? alert.area : null} geocode={alert ? alert.geocode : undefined} isTransitioning={isTransitioning} color={alertColor.light} />
+        <AlertAreaBar
+          area={alert ? alert.area : null}
+          geocode={alert ? alert.geocode : undefined}
+          isTransitioning={isTransitioning}
+          color={alertColor.light}
+          scrollDuration={scrollDuration}
+          bufferTime={bufferTime}
+          startScroll={startScroll}
+          onMeasureScroll={setScrollInfo}
+        />
       </div>
     </div>
   );

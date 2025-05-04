@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -25,6 +25,8 @@ import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { NWSOffice, NWSOfficeNames } from "@/types/nwsOffices";
 import { SettingsDialog } from "./Settings";
+import { parseAlerts } from "@/utils/nwsAlertUtils";
+import { applyQueryFilters } from "@/utils/queryParamUtils";
 
 function formatQueryParams(params: URLSearchParams): string {
   const formattedParams = new URLSearchParams();
@@ -96,6 +98,8 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
         .split(",")
         .map((type) => type)
     : [];
+
+  const [alertCounts, setAlertCounts] = useState<{ [key: string]: number }>({});
 
   const updateURL = (newStates: string[], newOffices: string[]) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -244,6 +248,42 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
     router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
   };
 
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchAlerts() {
+      try {
+        const res = await fetch("https://api.weather.gov/alerts/active");
+        if (!res.ok) return;
+        const data = await res.json();
+        const parsedAlerts = parseAlerts(data.features || []);
+        // Use the same filters as the menu
+        const filteredAlerts = applyQueryFilters(parsedAlerts, {
+          state: stateParam || undefined,
+          wfo: wfoParam || undefined,
+          zone: searchParams.get("zone") || undefined,
+        });
+        // Count alerts by type
+        const counts: { [key: string]: number } = {};
+        for (const type of Object.keys(filteredAlerts)) {
+          counts[type] = filteredAlerts[type]?.length || 0;
+        }
+        if (isMounted) setAlertCounts(counts);
+      } catch (e) {
+        console.error('Failed to fetch alerts:', e);
+      }
+    }
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [stateParam, wfoParam, searchParams]);
+
+  // Calculate total count for 'All Alerts' (excluding TOR_EMERGENCY)
+  const allAlertsCount = ALERT_TYPES.filter(type => type.key !== "TOR_EMERGENCY")
+    .reduce((sum, type) => sum + (alertCounts[type.key] || 0), 0);
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
@@ -268,13 +308,18 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuItem
-              className="font-medium mt-1"
+              className="font-medium mt-1 flex items-center justify-between"
               onSelect={(e) => {
                 e.preventDefault();
                 handleAllTypes();
               }}
             >
-              All Alerts
+              <span>All Alerts</span>
+              {allAlertsCount > 0 && (
+                <span className="ml-2 bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full min-w-[1.5em] text-center">
+                  {allAlertsCount}
+                </span>
+              )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {ALERT_TYPES.filter(type => type.key !== "TOR_EMERGENCY").map((type) => (
@@ -283,11 +328,19 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                 checked={selectedTypes.includes(type.key)}
                 onCheckedChange={(checked) => handleTypeSelect(type.key, checked)}
                 onSelect={(e) => e.preventDefault()}
+                className="flex items-center justify-between"
               >
-                <span className={`inline-block w-3 h-3 rounded-full mr-2 align-middle ${type.color}`}></span>
-                {type.label
-                  .toLowerCase()
-                  .replace(/\b\w/g, (c) => c.toUpperCase())}
+                <span className="flex items-center">
+                  <span className={`inline-block w-3 h-3 rounded-full mr-2 align-middle ${type.color}`}></span>
+                  {type.label
+                    .toLowerCase()
+                    .replace(/\b\w/g, (c) => c.toUpperCase())}
+                </span>
+                {alertCounts[type.key] > 0 && (
+                  <span className="ml-2 bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full min-w-[1.5em] text-center">
+                    {alertCounts[type.key]}
+                  </span>
+                )}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuSubContent>
@@ -336,8 +389,12 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                     checked={selectedStates.includes(state.code.toUpperCase())}
                     onCheckedChange={(checked) => handleStateSelect(state.code, checked)}
                     onSelect={(e) => e.preventDefault()}
+                    className="flex items-center justify-between"
                   >
-                    {state.name} ({state.code})
+                    <span>{state.name}</span>
+                    <span className="ml-2 bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full min-w-[2.5em] text-center">
+                      {state.code}
+                    </span>
                   </DropdownMenuCheckboxItem>
                 ))
               )}
@@ -386,8 +443,12 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                     checked={selectedOffices.includes(office.code.toUpperCase())}
                     onCheckedChange={(checked) => handleOfficeSelect(office.code, checked)}
                     onSelect={(e) => e.preventDefault()}
+                    className="flex items-center justify-between"
                   >
-                    {office.name} ({office.code})
+                    <span>{office.name}</span>
+                    <span className="ml-2 bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full min-w-[2.5em] text-center">
+                      {office.code}
+                    </span>
                   </DropdownMenuCheckboxItem>
                 ))
               )}

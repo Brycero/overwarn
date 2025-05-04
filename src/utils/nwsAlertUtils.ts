@@ -92,8 +92,9 @@ export function getStates(area: string, geocode?: { UGC?: string[] }) {
     ugcAbbrs = geocode.UGC.map((ugc) => ugc.substring(0, 2));
   }
   const allAbbrs = Array.from(new Set([...areaAbbrs, ...ugcAbbrs]));
-  if (allAbbrs.length > 0) {
-    const fullNames = allAbbrs.map((abbr) => STATE_MAP[abbr] || abbr);
+  const validAbbrs = allAbbrs.filter((abbr) => STATE_MAP[abbr]);
+  if (validAbbrs.length > 0) {
+    const fullNames = validAbbrs.map((abbr) => STATE_MAP[abbr]);
     return fullNames.join(", ");
   }
   return "";
