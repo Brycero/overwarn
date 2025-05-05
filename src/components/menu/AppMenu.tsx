@@ -38,7 +38,7 @@ function formatQueryParams(params: URLSearchParams): string {
   const stateParams = entries.filter(([key]) => key.toLowerCase() === "state");
   if (stateParams.length > 0) {
     const states = stateParams
-      .map(([value]) => decodeURIComponent(value).split(","))
+      .map(([, value]) => decodeURIComponent(value).split(","))
       .flat()
       .filter(Boolean);
     if (states.length > 0) {
@@ -50,7 +50,7 @@ function formatQueryParams(params: URLSearchParams): string {
   const wfoParams = entries.filter(([key]) => key.toLowerCase() === "wfo");
   if (wfoParams.length > 0) {
     const offices = wfoParams
-      .map(([value]) => decodeURIComponent(value).split(","))
+      .map(([, value]) => decodeURIComponent(value).split(","))
       .flat()
       .filter(Boolean);
     if (offices.length > 0) {
