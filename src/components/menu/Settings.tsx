@@ -8,6 +8,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from ".
 import { Button } from "../ui/button";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ALERT_TYPES } from "../../config/alertConfig";
+import { TAILWIND_TO_HEX } from "../../config/alertConfig";
 import { parseColorsParam, serializeColorsParam } from "../../utils/queryParamUtils";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "../ui/accordion";
 
@@ -16,18 +17,6 @@ const FONT_OPTIONS = [
   { label: "Serif", value: "serif" },
   { label: "Monospace", value: "monospace" },
 ];
-
-// Tailwind class to hex code mapping for ALERT_TYPES
-const TAILWIND_TO_HEX: Record<string, string> = {
-  "bg-red-600": "#dc2626",
-  "bg-yellow-500": "#eab308",
-  "bg-green-500": "#22c55e",
-  "bg-blue-500": "#3b82f6",
-  "bg-pink-500": "#ec4899",
-  "bg-orange-500": "#f97316",
-  "bg-purple-600": "#9333ea",
-  "bg-neutral-700": "#404040",
-};
 
 export function SettingsDialog() {
   const router = useRouter();

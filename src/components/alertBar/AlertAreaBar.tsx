@@ -1,25 +1,6 @@
 import React, { useRef, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
 import { isZoneBased, getCounties, getStates, getCountiesWithStates } from "../../utils/nwsAlertUtils";
-import { colorMap } from "../../config/alertConfig";
-
-const TAILWIND_TO_HEX: Record<string, string> = {
-  "bg-red-600": "#dc2626",
-  "bg-yellow-500": "#eab308",
-  "bg-green-500": "#22c55e",
-  "bg-blue-500": "#3b82f6",
-  "bg-pink-500": "#ec4899",
-  "bg-orange-500": "#f97316",
-  "bg-purple-600": "#9333ea",
-  "bg-neutral-700": "#404040",
-  "bg-red-400": "#f87171",
-  "bg-yellow-300": "#fde047",
-  "bg-green-300": "#86efac",
-  "bg-blue-300": "#93c5fd",
-  "bg-pink-300": "#f9a8d4",
-  "bg-orange-300": "#fdba74",
-  "bg-purple-400": "#c084fc",
-  "bg-neutral-500": "#737373",
-};
+import { colorMap, TAILWIND_TO_HEX } from "../../config/alertConfig";
 
 // Utility to lighten a hex color by a given percent (0-100)
 function lightenHexColor(hex: string, percent = 20): string {

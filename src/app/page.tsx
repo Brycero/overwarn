@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef, Suspense, useMemo } from "react";
 import { Geist } from "next/font/google";
-import { ALERT_TYPES } from "../config/alertConfig";
+import { ALERT_TYPES, TAILWIND_TO_HEX } from "../config/alertConfig";
 import { parseAlerts, NWSAlertGrouped, NWSAlertProperties } from "../utils/nwsAlertUtils";
 import { applyQueryFilters, parseColorsParam } from "../utils/queryParamUtils";
 import AlertExpires from "../components/alertBar/AlertExpires";
@@ -26,26 +26,6 @@ type AlertDisplay = {
   expires: string;
   geocode: NWSAlertProperties["geocode"];
   parameters: NWSAlertProperties["parameters"];
-};
-
-// Tailwind class to hex code mapping
-const TAILWIND_TO_HEX: Record<string, string> = {
-  "bg-red-600": "#dc2626",
-  "bg-yellow-500": "#eab308",
-  "bg-green-500": "#22c55e",
-  "bg-blue-500": "#3b82f6",
-  "bg-pink-500": "#ec4899",
-  "bg-orange-500": "#f97316",
-  "bg-purple-600": "#9333ea",
-  "bg-neutral-700": "#404040",
-  "bg-red-400": "#f87171",
-  "bg-yellow-300": "#fde047",
-  "bg-green-300": "#86efac",
-  "bg-blue-300": "#93c5fd",
-  "bg-pink-300": "#f9a8d4",
-  "bg-orange-300": "#fdba74",
-  "bg-purple-400": "#c084fc",
-  "bg-neutral-500": "#737373",
 };
 
 function AlertOverlayContent() {
