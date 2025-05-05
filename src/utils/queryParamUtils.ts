@@ -1,4 +1,18 @@
 import { filterAlertsByStates, filterAlertsByOffices, NWSAlertGrouped, filterAlertsByTypes, filterAlertsByZones } from './nwsAlertUtils';
+import { US_STATES } from "@/config/states";
+
+/**
+ * Returns the codes for the 48 contiguous US states plus DC
+ */
+export function getContiguousStateCodes(): string[] {
+  // Exclude Alaska (AK), Hawaii (HI), Puerto Rico (PR), Virgin Islands (VI), Guam (GU), American Samoa (AS), Northern Mariana Islands (MP)
+  return US_STATES
+    .filter(
+      (s) =>
+        !["AK", "HI", "PR", "VI", "GU", "AS", "MP"].includes(s.code.toUpperCase())
+    )
+    .map((s) => s.code.toUpperCase());
+}
 
 /**
  * Parses state query parameter into an array of state names/abbreviations
@@ -12,10 +26,14 @@ export function parseStateParam(stateParam: string | string[] | undefined): stri
   const stateValues = Array.isArray(stateParam) ? stateParam : [stateParam];
   
   // Split each value by comma if present and flatten
-  return stateValues
+  const parsed = stateValues
     .flatMap(state => state.split(','))
-    .map(state => state.trim())
+    .map(state => state.trim().toUpperCase())
     .filter(Boolean); // Remove empty strings
+  if (parsed.includes("CONT")) {
+    return getContiguousStateCodes();
+  }
+  return parsed;
 }
 
 /**
@@ -126,8 +144,14 @@ export function applyQueryFilters(
   
   // Apply state filter if present
   if (params.state) {
-    const states = parseStateParam(params.state);
-    filteredAlerts = filterAlertsByStates(filteredAlerts, states);
+    // If 'cont' is present, only use contiguous states
+    const stateValues = Array.isArray(params.state) ? params.state : [params.state];
+    if (stateValues.some(v => v.split(',').map(s => s.trim().toUpperCase()).includes("CONT"))) {
+      filteredAlerts = filterAlertsByStates(filteredAlerts, getContiguousStateCodes());
+    } else {
+      const states = parseStateParam(params.state);
+      filteredAlerts = filterAlertsByStates(filteredAlerts, states);
+    }
   }
   
   // Apply WFO filter if present

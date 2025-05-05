@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useRef, Suspense, useReducer } from "react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "../ui/dialog";
 import { Settings as SettingsIcon, FlaskConical } from "lucide-react";
@@ -155,7 +157,7 @@ export function SettingsDialog() {
                 id="zone-input"
                 type="text"
                 className="w-full rounded-md border px-3 py-2 text-sm bg-background mt-2"
-                placeholder="e.g. TXC123, OKZ456"
+                placeholder="e.g. TXC123,OKZ456"
                 value={zoneInput}
                 onChange={handleZoneInputChange}
                 onKeyDown={handleZoneInputKeyDown}
