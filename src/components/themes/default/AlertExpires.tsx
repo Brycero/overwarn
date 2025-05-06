@@ -1,5 +1,5 @@
 import React from "react";
-import { getExpiresIn } from "../../utils/nwsAlertUtils";
+import { getExpiresIn } from "../../../utils/nwsAlertUtils";
 
 type AlertExpiresProps = {
   expires: string | null;

@@ -1,5 +1,5 @@
 import React from "react";
-import { getStates, formatExpiresTime } from "../../utils/nwsAlertUtils";
+import { getStates, formatExpiresTime } from "../../../utils/nwsAlertUtils";
 
 type AlertStateBarProps = {
   area: string | null;
