@@ -136,7 +136,7 @@ const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function Aler
   return (
     <div
       ref={containerRef}
-      className="alert-area-scrollbar-hide flex items-center px-6 py-3 text-white font-extrabold text-2xl shadow row-span-1 col-span-3 drop-shadow-md whitespace-nowrap overflow-hidden text-ellipsis"
+      className="alert-area-scrollbar-hide flex items-center px-6 py-3 text-white font-extrabold text-2xl shadow row-span-1 col-span-1 drop-shadow-md whitespace-nowrap overflow-hidden text-ellipsis"
       style={{ 
         textShadow: '1px 1px 4px rgba(0,0,0,0.7)', 
         overflowX: 'auto',

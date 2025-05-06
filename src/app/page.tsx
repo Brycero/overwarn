@@ -213,14 +213,14 @@ function AlertOverlayContent() {
 
   return (
     <div className={`fixed bottom-0 left-0 w-full z-50 ${geistSans.variable}`} style={{ fontFamily: 'var(--font-geist-sans), Arial, sans-serif' }}>
-      <div className="grid grid-cols-4 grid-rows-2 w-full min-h-[90px]">
-        {/* Top Left: Expires in time */}
+      <div className="grid grid-cols-[auto_1fr] grid-rows-2 w-full min-h-[90px]">
+        {/* Left Column Top: Expires in time */}
         <AlertExpires expires={alert ? alert.expires : null} isTransitioning={isTransitioning} />
-        {/* Top Right: State | Expires Time */}
+        {/* Right Column Top: State | Expires Time */}
         <AlertStateBar area={alert ? alert.area : null} geocode={alert ? alert.geocode : undefined} expires={alert ? alert.expires : null} headline={alert ? alert.headline : null} isTransitioning={isTransitioning} />
-        {/* Bottom Left: Alert Type */}
+        {/* Left Column Bottom: Alert Type */}
         <AlertTypeBar label={alert ? alert.label : null} color={alert ? alert.color : "#404040"} isTransitioning={isTransitioning} />
-        {/* Bottom Right: Counties or Area */}
+        {/* Right Column Bottom: Counties or Area */}
         <AlertAreaBar
           area={alert ? alert.area : null}
           geocode={alert ? alert.geocode : undefined}
@@ -240,11 +240,11 @@ function AlertOverlayContent() {
 function LoadingOverlay() {
   return (
     <div className={`fixed bottom-0 left-0 w-full z-50 ${geistSans.variable}`}>
-      <div className="grid grid-cols-4 grid-rows-2 w-full min-h-[90px] bg-gray-800 animate-pulse">
+      <div className="grid grid-cols-[auto_1fr] grid-rows-2 w-full min-h-[90px] bg-gray-800 animate-pulse">
         <div className="col-span-1 row-span-1"></div>
-        <div className="col-span-3 row-span-1"></div>
         <div className="col-span-1 row-span-1"></div>
-        <div className="col-span-3 row-span-1"></div>
+        <div className="col-span-1 row-span-1"></div>
+        <div className="col-span-1 row-span-1"></div>
       </div>
     </div>
   );
