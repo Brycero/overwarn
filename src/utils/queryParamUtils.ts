@@ -5,7 +5,6 @@ import { US_STATES } from "@/config/states";
  * Returns the codes for the 48 contiguous US states plus DC
  */
 export function getContiguousStateCodes(): string[] {
-  // Exclude Alaska (AK), Hawaii (HI), Puerto Rico (PR), Virgin Islands (VI), Guam (GU), American Samoa (AS), Northern Mariana Islands (MP)
   return US_STATES
     .filter(
       (s) =>
@@ -173,4 +172,29 @@ export function applyQueryFilters(
   }
   
   return filteredAlerts;
+}
+
+/**
+ * Checks if passive mode is enabled via the 'passive' query parameter.
+ * @param searchParams URLSearchParams object
+ * @returns true if 'passive=true' is present, false otherwise
+ */
+export function isPassiveMode(searchParams: URLSearchParams): boolean {
+  return searchParams.get('passive') === 'true';
+}
+
+/**
+ * Returns a new URLSearchParams with the 'passive' parameter set to 'true' or removed.
+ * @param searchParams URLSearchParams object
+ * @param enable If true, set 'passive=true'; if false, remove it
+ * @returns New URLSearchParams object
+ */
+export function setPassiveMode(searchParams: URLSearchParams, enable: boolean): URLSearchParams {
+  const params = new URLSearchParams(searchParams.toString());
+  if (enable) {
+    params.set('passive', 'true');
+  } else {
+    params.delete('passive');
+  }
+  return params;
 } 

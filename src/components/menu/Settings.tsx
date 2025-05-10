@@ -11,7 +11,7 @@ import { Button } from "../ui/button";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ALERT_TYPES } from "../../config/alertConfig";
 import { TAILWIND_TO_HEX } from "../../config/alertConfig";
-import { parseColorsParam, serializeColorsParam } from "../../utils/queryParamUtils";
+import { parseColorsParam, serializeColorsParam, isPassiveMode, setPassiveMode } from "../../utils/queryParamUtils";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "../ui/accordion";
 
 const FONT_OPTIONS = [
@@ -32,7 +32,6 @@ export function SettingsDialog() {
   // Initialize from current query param
   const zoneParam = searchParams.get("zone") || "";
   const [zoneInput, setZoneInput] = useState(zoneParam);
-  const [showAlerts, setShowAlerts] = useState(false);
   const [font, setFont] = useState(FONT_OPTIONS[0].value);
 
   // --- Alert Color Customization ---
@@ -54,6 +53,19 @@ export function SettingsDialog() {
   useEffect(() => {
     setZoneInput(zoneParam);
   }, [zoneParam]);
+
+  // --- New Alert Badge/Sound Setting ---
+  const [showNewBadge, setShowNewBadge] = useState(() => !isPassiveMode(searchParams));
+  // Keep toggle in sync with query param
+  useEffect(() => {
+    setShowNewBadge(!isPassiveMode(searchParams));
+  }, [searchParams]);
+  // Handle toggle change
+  const handleShowNewBadgeChange = (checked: boolean) => {
+    setShowNewBadge(checked);
+    const params = setPassiveMode(searchParams, !checked);
+    router.replace(`${pathname}${params.toString() ? `?${params}` : ""}`);
+  };
 
   // Helper to sanitize and validate zone codes
   const sanitizeZoneInput = (input: string) => {
@@ -146,6 +158,16 @@ export function SettingsDialog() {
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-6 mt-2" onSubmit={e => e.preventDefault()}>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="show-new-badge-checkbox"
+                checked={showNewBadge}
+                onCheckedChange={checked => handleShowNewBadgeChange(!!checked)}
+              />
+              <label htmlFor="show-new-badge-checkbox" className="text-sm font-medium select-none">
+                Show newly issued alerts immediately and play sound
+              </label>
+            </div>
             <div>
               <label htmlFor="zone-input" className="block text-sm font-medium">
                 Filter by NWS API Counties/Zones (comma separated)
@@ -165,18 +187,6 @@ export function SettingsDialog() {
                 autoComplete="off"
                 ref={inputRef}
               />
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="show-alerts-checkbox"
-                checked={showAlerts}
-                onCheckedChange={checked => setShowAlerts(!!checked)}
-                disabled
-              />
-              <label htmlFor="show-alerts-checkbox" className="text-sm font-medium select-none">
-                Show new alerts immediately
-              </label>
-              <span className="ml-2 bg-muted px-1.5 py-0.5 rounded text-xs font-medium text-muted-foreground uppercase tracking-wider">Coming Soon</span>
             </div>
             <div>
               <label htmlFor="font-select" className="block text-sm font-medium mb-1">
@@ -277,7 +287,10 @@ export function SettingsDialog() {
                 type="button"
                 className="mt-2"
                 variant="default"
-                onClick={commitColorsToUrl}
+                onClick={() => {
+                  updateZoneParam(zoneInput);
+                  commitColorsToUrl();
+                }}
               >
                 Close
               </Button>

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { ALERT_TYPES, TAILWIND_TO_HEX } from "../../config/alertConfig";
 import { parseAlerts, NWSAlertGrouped, NWSAlertProperties } from "../../utils/nwsAlertUtils";
-import { applyQueryFilters, parseColorsParam } from "../../utils/queryParamUtils";
+import { applyQueryFilters, parseColorsParam, isPassiveMode } from "../../utils/queryParamUtils";
 import { useSearchParams } from "next/navigation";
 
 export type AlertDisplay = {
@@ -12,10 +12,12 @@ export type AlertDisplay = {
   expires: string;
   geocode: NWSAlertProperties["geocode"];
   parameters: NWSAlertProperties["parameters"];
+  isNew?: boolean;
 };
 
 export function useAlertOverlay() {
   const [alerts, setAlerts] = useState<NWSAlertGrouped>({});
+  const [queue, setQueue] = useState<AlertDisplay[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [currentAlert, setCurrentAlert] = useState<AlertDisplay | null>(null);
@@ -28,6 +30,8 @@ export function useAlertOverlay() {
   const lastAlertKey = useRef<string | null>(null);
   const alertsLengthRef = useRef<number>(0);
   const searchParams = useSearchParams();
+  const seenAlertKeys = useRef<Set<string>>(new Set());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // --- Custom Color Logic ---
   // Parse user color overrides from query string
@@ -83,31 +87,70 @@ export function useAlertOverlay() {
     };
   }, [searchParams]);
 
-  // Flatten all alerts for cycling, using mergedAlertTypes
-  const allAlerts = useMemo(() => mergedAlertTypes.flatMap(({ key, label, color }) =>
-    (alerts[key] || []).map((a: NWSAlertProperties) => ({
-      label: (a.event.startsWith("PDS") ? "PDS " : "") +
-        (a.event.includes("OBSERVED") ? "OBSERVED " : "") +
-        (a.event.includes("EMERGENCY") ? "EMERGENCY " : "") +
-        label,
-      color, // always hex
-      headline: a.headline,
-      area: a.areaDesc,
-      expires: a.ends,
-      geocode: a.geocode,
-      parameters: a.parameters,
-    }))
-  ), [alerts, mergedAlertTypes]);
+  function getAlertKey(alert: { headline: string; area: string; expires: string } | null) {
+    if (!alert) return '';
+    return `${alert.headline}|${alert.area}|${alert.expires}`;
+  }
 
-  // Update alerts length ref when allAlerts changes
+  // Step 2: Build new queue with isNew property and insert new alerts after currentIdx
   useEffect(() => {
-    alertsLengthRef.current = allAlerts.length;
-  }, [allAlerts]);
+    // Flatten all alerts for cycling, using mergedAlertTypes
+    const flatAlerts: AlertDisplay[] = mergedAlertTypes.flatMap(({ key, label, color }) =>
+      (alerts[key] || []).map((a: NWSAlertProperties) => ({
+        label: (a.event.startsWith("PDS") ? "PDS " : "") +
+          (a.event.includes("OBSERVED") ? "OBSERVED " : "") +
+          (a.event.includes("EMERGENCY") ? "EMERGENCY " : "") +
+          label,
+        color, // always hex
+        headline: a.headline,
+        area: a.areaDesc,
+        expires: a.ends,
+        geocode: a.geocode,
+        parameters: a.parameters,
+      }))
+    );
+
+    // Compute keys for all alerts
+    const flatAlertKeys = flatAlerts.map(getAlertKey);
+    // Find new alerts (not in seen set)
+    const newAlerts: AlertDisplay[] = [];
+    flatAlerts.forEach((alert, i) => {
+      const key = flatAlertKeys[i];
+      if (!seenAlertKeys.current.has(key)) {
+        newAlerts.push({ ...alert, isNew: true });
+      }
+    });
+
+    // Mark all current alerts as seen
+    flatAlertKeys.forEach((key) => seenAlertKeys.current.add(key));
+
+    // Build the new queue:
+    // - If there are new alerts, insert them after the current alert
+    // - Otherwise, just use the flatAlerts
+    setQueue(() => {
+      if (newAlerts.length === 0) {
+        return flatAlerts;
+      }
+      // Insert new alerts after the current alert
+      const idx = currentIdx < flatAlerts.length ? currentIdx : 0;
+      const before = flatAlerts.slice(0, idx + 1);
+      const after = flatAlerts.slice(idx + 1);
+      // Remove any duplicates (by key) from newAlerts
+      const newAlertKeys = new Set(newAlerts.map(getAlertKey));
+      const afterFiltered = after.filter(a => !newAlertKeys.has(getAlertKey(a)));
+      return [...before, ...newAlerts, ...afterFiltered];
+    });
+  }, [alerts, mergedAlertTypes, currentIdx]);
+
+  // Update alerts length ref when queue changes
+  useEffect(() => {
+    alertsLengthRef.current = queue.length;
+  }, [queue]);
 
   // Memoize current alert: only update if key fields change
   useEffect(() => {
-    const next: typeof allAlerts[number] | null = allAlerts[currentIdx] || null;
-    setCurrentAlert((prev: typeof allAlerts[number] | null) => {
+    const next: typeof queue[number] | null = queue[currentIdx] || null;
+    setCurrentAlert((prev: typeof queue[number] | null) => {
       if (!prev && !next) return null;
       if (!prev || !next) return next;
       // Compare key fields
@@ -120,12 +163,7 @@ export function useAlertOverlay() {
       }
       return prev;
     });
-  }, [allAlerts, currentIdx]);
-
-  function getAlertKey(alert: { headline: string; area: string; expires: string } | null) {
-    if (!alert) return '';
-    return `${alert.headline}|${alert.area}|${alert.expires}`;
-  }
+  }, [queue, currentIdx]);
 
   // Compute a stable key for the current alert
   const alertKey = currentAlert ? getAlertKey(currentAlert) : '';
@@ -175,21 +213,43 @@ export function useAlertOverlay() {
   }, [currentIdx]);
 
   useEffect(() => {
-    lastAlertKey.current = getAlertKey(allAlerts[currentIdx] || null);
-  }, [currentIdx, allAlerts]);
+    lastAlertKey.current = getAlertKey(queue[currentIdx] || null);
+  }, [currentIdx, queue]);
 
   useEffect(() => {
-    if (allAlerts.length === 0) {
+    if (queue.length === 0) {
       setCurrentIdx(0);
       return;
     }
     if (lastAlertKey.current) {
-      const idx = allAlerts.findIndex(a => getAlertKey(a) === lastAlertKey.current);
+      const idx = queue.findIndex(a => getAlertKey(a) === lastAlertKey.current);
       setCurrentIdx(idx >= 0 ? idx : 0);
     } else {
       setCurrentIdx(0);
     }
-  }, [allAlerts]);
+  }, [queue]);
+
+  // Play sound and clear isNew after showing a new alert (if enabled)
+  useEffect(() => {
+    if (!currentAlert || !currentAlert.isNew) return;
+    const passive = isPassiveMode(searchParams);
+    if (!passive) {
+      // Play sound
+      if (!audioRef.current) {
+        audioRef.current = new window.Audio("/sounds/new-alert-chime.mp3");
+      }
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
+    // After a short delay, mark isNew as false for this alert in the queue
+    setTimeout(() => {
+      setQueue((prevQueue) =>
+        prevQueue.map((a, i) =>
+          i === currentIdx ? { ...a, isNew: false } : a
+        )
+      );
+    }, 500); // badge visible for at least 0.5s
+  }, [currentAlert, searchParams, currentIdx]);
 
   return {
     alert: currentAlert,

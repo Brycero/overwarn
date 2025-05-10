@@ -5,6 +5,8 @@ import AlertStateBar from "./AlertStateBar";
 import AlertTypeBar from "./AlertTypeBar";
 import AlertAreaBar from "./AlertAreaBar";
 import { Geist } from "next/font/google";
+import { useSearchParams } from "next/navigation";
+import { isPassiveMode } from "../../../utils/queryParamUtils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,12 +22,19 @@ export default function AlertOverlayLayoutDefault() {
     scrollDuration,
     bufferTime,
   } = useAlertOverlay();
+  const searchParams = useSearchParams();
+  const showNewBadge = !isPassiveMode(searchParams);
 
   return (
     <div className={`fixed bottom-0 left-0 w-full z-50 ${geistSans.variable}`} style={{ fontFamily: 'var(--font-geist-sans), Arial, sans-serif' }}>
       <div className="grid grid-cols-[auto_1fr] grid-rows-2 w-full min-h-[90px]">
         {/* Left Column Top: Expires in time */}
-        <AlertExpires expires={alert ? alert.expires : null} isTransitioning={isTransitioning} />
+        <AlertExpires
+          expires={alert ? alert.expires : null}
+          isTransitioning={isTransitioning}
+          isNew={alert ? alert.isNew : false}
+          showNewBadge={showNewBadge}
+        />
         {/* Right Column Top: State | Expires Time */}
         <AlertStateBar area={alert ? alert.area : null} geocode={alert ? alert.geocode : undefined} expires={alert ? alert.expires : null} headline={alert ? alert.headline : null} isTransitioning={isTransitioning} />
         {/* Left Column Bottom: Alert Type */}
