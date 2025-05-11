@@ -12,7 +12,6 @@ export type AlertDisplay = {
   expires: string;
   geocode: NWSAlertProperties["geocode"];
   parameters: NWSAlertProperties["parameters"];
-  isNew?: boolean;
 };
 
 export function useAlertOverlay() {
@@ -20,18 +19,18 @@ export function useAlertOverlay() {
   const [queue, setQueue] = useState<AlertDisplay[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [currentAlert, setCurrentAlert] = useState<AlertDisplay | null>(null);
   const [scrollInfo, setScrollInfo] = useState<{ scrollDistance: number; needsScroll: boolean }>({ scrollDistance: 0, needsScroll: false });
   const [startScroll, setStartScroll] = useState(false);
   const [scrollDuration, setScrollDuration] = useState(0);
   const [bufferTime] = useState(2000); // ms
-  const [displayDuration, setDisplayDuration] = useState(5000); // ms
+  const [displayDuration, setDisplayDuration] = useState(10000); // ms
   const transitionTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastAlertKey = useRef<string | null>(null);
   const alertsLengthRef = useRef<number>(0);
   const searchParams = useSearchParams();
-  const seenAlertKeys = useRef<Set<string>>(new Set());
+  const [seenAlertKeys, setSeenAlertKeys] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [hasInitializedSeen, setHasInitializedSeen] = useState(false);
 
   // --- Custom Color Logic ---
   // Parse user color overrides from query string
@@ -112,72 +111,51 @@ export function useAlertOverlay() {
 
     // Compute keys for all alerts
     const flatAlertKeys = flatAlerts.map(getAlertKey);
-    // Find new alerts (not in seen set)
+
+    // On first load, initialize seenAlertKeys with all current alert keys
+    if (!hasInitializedSeen && flatAlertKeys.length > 0) {
+      setSeenAlertKeys(new Set(flatAlertKeys));
+      setHasInitializedSeen(true);
+      setQueue(flatAlerts);
+      return;
+    }
+
+    // Partition alerts into new and seen
     const newAlerts: AlertDisplay[] = [];
+    const seenAlerts: AlertDisplay[] = [];
     flatAlerts.forEach((alert, i) => {
       const key = flatAlertKeys[i];
-      if (!seenAlertKeys.current.has(key)) {
-        newAlerts.push({ ...alert, isNew: true });
+      if (!seenAlertKeys.has(key)) {
+        newAlerts.push(alert);
+      } else {
+        seenAlerts.push(alert);
       }
     });
 
-    // Mark all current alerts as seen
-    flatAlertKeys.forEach((key) => seenAlertKeys.current.add(key));
-
-    // Build the new queue:
-    // - If there are new alerts, insert them after the current alert
-    // - Otherwise, just use the flatAlerts
-    setQueue(() => {
-      if (newAlerts.length === 0) {
-        return flatAlerts;
-      }
-      // Insert new alerts after the current alert
-      const idx = currentIdx < flatAlerts.length ? currentIdx : 0;
-      const before = flatAlerts.slice(0, idx + 1);
-      const after = flatAlerts.slice(idx + 1);
-      // Remove any duplicates (by key) from newAlerts
-      const newAlertKeys = new Set(newAlerts.map(getAlertKey));
-      const afterFiltered = after.filter(a => !newAlertKeys.has(getAlertKey(a)));
-      return [...before, ...newAlerts, ...afterFiltered];
-    });
-  }, [alerts, mergedAlertTypes, currentIdx]);
+    // Stack all new alerts at the beginning of the queue
+    setQueue([...newAlerts, ...seenAlerts]);
+  }, [alerts, mergedAlertTypes, hasInitializedSeen, seenAlertKeys]);
 
   // Update alerts length ref when queue changes
   useEffect(() => {
     alertsLengthRef.current = queue.length;
   }, [queue]);
 
-  // Memoize current alert: only update if key fields change
-  useEffect(() => {
-    const next: typeof queue[number] | null = queue[currentIdx] || null;
-    setCurrentAlert((prev: typeof queue[number] | null) => {
-      if (!prev && !next) return null;
-      if (!prev || !next) return next;
-      // Compare key fields
-      if (
-        prev.headline !== next.headline ||
-        prev.area !== next.area ||
-        prev.expires !== next.expires
-      ) {
-        return next;
-      }
-      return prev;
-    });
-  }, [queue, currentIdx]);
-
   // Compute a stable key for the current alert
+  const currentAlert = queue[currentIdx] || null;
   const alertKey = currentAlert ? getAlertKey(currentAlert) : '';
+  const isCurrentAlertNew = currentAlert && !seenAlertKeys.has(alertKey);
 
   // When scrollInfo changes, recalculate durations
   useEffect(() => {
     const minReadingSpeed = 80; // px/sec
     let scrollDur = 0;
-    let totalDisplay = 5000;
+    let totalDisplay = 10000;
     if (scrollInfo.needsScroll && scrollInfo.scrollDistance > 0) {
       scrollDur = (scrollInfo.scrollDistance / minReadingSpeed) * 1000;
       totalDisplay = scrollDur + bufferTime * 2;
     } else {
-      totalDisplay = 5000; // 5s for short lists
+      totalDisplay = 10000; // 10s for short lists
       scrollDur = 0;
     }
     setScrollDuration(scrollDur);
@@ -229,30 +207,32 @@ export function useAlertOverlay() {
     }
   }, [queue]);
 
-  // Play sound and clear isNew after showing a new alert (if enabled)
+  // Play sound and mark as seen for new alerts
   useEffect(() => {
-    if (!currentAlert || !currentAlert.isNew) return;
+    if (!isCurrentAlertNew || !currentAlert) return;
     const passive = isPassiveMode(searchParams);
     if (!passive) {
-      // Play sound
       if (!audioRef.current) {
-        audioRef.current = new window.Audio("/sounds/new-alert-chime.mp3");
+        audioRef.current = new window.Audio("/alert-default.mp3");
       }
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
     }
-    // After a short delay, mark isNew as false for this alert in the queue
-    setTimeout(() => {
-      setQueue((prevQueue) =>
-        prevQueue.map((a, i) =>
-          i === currentIdx ? { ...a, isNew: false } : a
-        )
-      );
-    }, 500); // badge visible for at least 0.5s
-  }, [currentAlert, searchParams, currentIdx]);
+    // Mark as seen after displayDuration
+    const timeout = setTimeout(() => {
+      setSeenAlertKeys(prev => new Set(prev).add(alertKey));
+    }, displayDuration);
+    return () => clearTimeout(timeout);
+  }, [isCurrentAlertNew, currentAlert, alertKey, displayDuration, searchParams]);
+
+  // Reset queue index to 0 when filters (searchParams) change
+  useEffect(() => {
+    setCurrentIdx(0);
+  }, [searchParams]);
 
   return {
     alert: currentAlert,
+    isCurrentAlertNew,
     isTransitioning,
     scrollInfo,
     setScrollInfo,

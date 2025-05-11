@@ -1,5 +1,5 @@
 import React from "react";
-import { useAlertOverlay } from "../../provider/AlertOverlayProvider";
+import { useAlertOverlay } from "../../providers/AlertOverlayProvider";
 import AlertExpires from "./AlertExpires";
 import AlertStateBar from "./AlertStateBar";
 import AlertTypeBar from "./AlertTypeBar";
@@ -21,6 +21,7 @@ export default function AlertOverlayLayoutDefault() {
     startScroll,
     scrollDuration,
     bufferTime,
+    isCurrentAlertNew,
   } = useAlertOverlay();
   const searchParams = useSearchParams();
   const showNewBadge = !isPassiveMode(searchParams);
@@ -32,7 +33,7 @@ export default function AlertOverlayLayoutDefault() {
         <AlertExpires
           expires={alert ? alert.expires : null}
           isTransitioning={isTransitioning}
-          isNew={alert ? alert.isNew : false}
+          isNew={isCurrentAlertNew}
           showNewBadge={showNewBadge}
         />
         {/* Right Column Top: State | Expires Time */}
