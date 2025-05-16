@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, Suspense, useEffect } from "react";
+
+import React, { useState, Suspense } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -25,8 +26,7 @@ import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { NWSOffice, NWSOfficeNames } from "@/types/nwsOffices";
 import { SettingsDialog } from "./Settings";
-import { parseAlerts } from "@/utils/nwsAlertUtils";
-import { applyQueryFilters } from "@/utils/queryParamUtils";
+import { useAlertOverlayContext } from "../providers/AlertOverlayProvider";
 
 function formatQueryParams(params: URLSearchParams): string {
   const formattedParams = new URLSearchParams();
@@ -70,6 +70,7 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { alertTypeCounts } = useAlertOverlayContext();
   
   // State filter params
   const stateParam = searchParams.get("state");
@@ -98,8 +99,6 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
         .split(",")
         .map((type) => type)
     : [];
-
-  const [alertCounts, setAlertCounts] = useState<{ [key: string]: number }>({});
 
   const updateURL = (newStates: string[], newOffices: string[]) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -248,41 +247,9 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
     router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    async function fetchAlerts() {
-      try {
-        const res = await fetch("https://api.weather.gov/alerts/active");
-        if (!res.ok) return;
-        const data = await res.json();
-        const parsedAlerts = parseAlerts(data.features || []);
-        // Use the same filters as the menu
-        const filteredAlerts = applyQueryFilters(parsedAlerts, {
-          state: stateParam || undefined,
-          wfo: wfoParam || undefined,
-          zone: searchParams.get("zone") || undefined,
-        });
-        // Count alerts by type
-        const counts: { [key: string]: number } = {};
-        for (const type of Object.keys(filteredAlerts)) {
-          counts[type] = filteredAlerts[type]?.length || 0;
-        }
-        if (isMounted) setAlertCounts(counts);
-      } catch (e) {
-        console.error('Failed to fetch alerts:', e);
-      }
-    }
-    fetchAlerts();
-    const interval = setInterval(fetchAlerts, 30000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [stateParam, wfoParam, searchParams]);
-
   // Calculate total count for 'All Alerts' (excluding TOR_EMERGENCY)
   const allAlertsCount = ALERT_TYPES.filter(type => type.key !== "TOR_EMERGENCY")
-    .reduce((sum, type) => sum + (alertCounts[type.key] || 0), 0);
+    .reduce((sum, type) => sum + (alertTypeCounts[type.key] || 0), 0);
 
   return (
     <DropdownMenu modal={false}>
@@ -336,9 +303,9 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                     .toLowerCase()
                     .replace(/\b\w/g, (c) => c.toUpperCase())}
                 </span>
-                {alertCounts[type.key] > 0 && (
+                {alertTypeCounts[type.key] > 0 && (
                   <span className="ml-2 bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full min-w-[1.5em] text-center">
-                    {alertCounts[type.key]}
+                    {alertTypeCounts[type.key]}
                   </span>
                 )}
               </DropdownMenuCheckboxItem>

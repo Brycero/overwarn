@@ -1,8 +1,11 @@
+"use client";
+
 import { useEffect, useState, useRef, useMemo } from "react";
 import { ALERT_TYPES, TAILWIND_TO_HEX } from "../../config/alertConfig";
 import { parseAlerts, NWSAlertGrouped, NWSAlertProperties } from "../../utils/nwsAlertUtils";
 import { applyQueryFilters, parseColorsParam, isPassiveMode } from "../../utils/queryParamUtils";
 import { useSearchParams } from "next/navigation";
+import React, { createContext, useContext } from "react";
 
 export type AlertDisplay = {
   label: string;
@@ -31,6 +34,7 @@ export function useAlertOverlay() {
   const [seenAlertKeys, setSeenAlertKeys] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [hasInitializedSeen, setHasInitializedSeen] = useState(false);
+  const [alertTypeCounts, setAlertTypeCounts] = useState<{ [key: string]: number }>({});
 
   // --- Custom Color Logic ---
   // Parse user color overrides from query string
@@ -66,6 +70,12 @@ export function useAlertOverlay() {
         if (isMounted) {
           // Parse the raw alerts
           const parsedAlerts = parseAlerts(data.features || []);
+          // Compute counts for each alert type (before filtering)
+          const counts: { [key: string]: number } = {};
+          ALERT_TYPES.forEach(type => {
+            counts[type.key] = (parsedAlerts[type.key] || []).length;
+          });
+          setAlertTypeCounts(counts);
           // Apply filters based on query parameters
           const state = searchParams.get('state') || undefined;
           const wfo = searchParams.get('wfo') || undefined;
@@ -241,5 +251,23 @@ export function useAlertOverlay() {
     bufferTime,
     displayDuration,
     mergedAlertTypes,
+    alertTypeCounts,
   };
-} 
+}
+
+const AlertOverlayContext = createContext<ReturnType<typeof useAlertOverlay> | undefined>(undefined);
+
+export const AlertOverlayProvider = ({ children }: { children: React.ReactNode }) => {
+  const value = useAlertOverlay();
+  return (
+    <AlertOverlayContext.Provider value={value}>
+      {children}
+    </AlertOverlayContext.Provider>
+  );
+};
+
+export const useAlertOverlayContext = () => {
+  const ctx = useContext(AlertOverlayContext);
+  if (!ctx) throw new Error("useAlertOverlayContext must be used within AlertOverlayProvider");
+  return ctx;
+}; 

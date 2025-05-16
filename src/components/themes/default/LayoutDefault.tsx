@@ -1,5 +1,5 @@
 import React from "react";
-import { useAlertOverlay } from "../../providers/AlertOverlayProvider";
+import { useAlertOverlayContext } from "../../providers/AlertOverlayProvider";
 import AlertExpires from "./AlertExpires";
 import AlertStateBar from "./AlertStateBar";
 import AlertTypeBar from "./AlertTypeBar";
@@ -22,7 +22,7 @@ export default function AlertOverlayLayoutDefault() {
     scrollDuration,
     bufferTime,
     isCurrentAlertNew,
-  } = useAlertOverlay();
+  } = useAlertOverlayContext();
   const searchParams = useSearchParams();
   const showNewBadge = !isPassiveMode(searchParams);
 
@@ -54,4 +54,4 @@ export default function AlertOverlayLayoutDefault() {
       </div>
     </div>
   );
-} 
+}
