@@ -6,8 +6,10 @@ import { parseAlerts, NWSAlertGrouped, NWSAlertProperties } from "../../utils/nw
 import { applyQueryFilters, parseColorsParam, isPassiveMode } from "../../utils/queryParamUtils";
 import { useSearchParams } from "next/navigation";
 import React, { createContext, useContext } from "react";
+import { flushSync } from "react-dom";
 
 export type AlertDisplay = {
+  id: string;
   label: string;
   color: string;
   headline: string;
@@ -35,6 +37,8 @@ export function useAlertOverlay() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [hasInitializedSeen, setHasInitializedSeen] = useState(false);
   const [alertTypeCounts, setAlertTypeCounts] = useState<{ [key: string]: number }>({});
+  const newAlertsRef = useRef<Set<string>>(new Set());
+  const currentPositionRef = useRef(0);
 
   // --- Custom Color Logic ---
   // Parse user color overrides from query string
@@ -96,16 +100,16 @@ export function useAlertOverlay() {
     };
   }, [searchParams]);
 
-  function getAlertKey(alert: { headline: string; area: string; expires: string } | null) {
+  function getAlertKey(alert: { id: string } | null) {
     if (!alert) return '';
-    return `${alert.headline}|${alert.area}|${alert.expires}`;
+    return alert.id;
   }
 
-  // Step 2: Build new queue with isNew property and insert new alerts after currentIdx
-  useEffect(() => {
-    // Flatten all alerts for cycling, using mergedAlertTypes
-    const flatAlerts: AlertDisplay[] = mergedAlertTypes.flatMap(({ key, label, color }) =>
+  // Process alerts into a flat list
+  const getFlattedAlerts = () => {
+    return mergedAlertTypes.flatMap(({ key, label, color }) =>
       (alerts[key] || []).map((a: NWSAlertProperties) => ({
+        id: a.id,
         label: (a.event.startsWith("PDS") ? "PDS " : "") +
           (a.event.includes("OBSERVED") ? "OBSERVED " : "") +
           (a.event.includes("EMERGENCY") ? "EMERGENCY " : "") +
@@ -118,10 +122,21 @@ export function useAlertOverlay() {
         parameters: a.parameters,
       }))
     );
+  };
 
+  // Update current position ref when currentIdx changes
+  useEffect(() => {
+    currentPositionRef.current = currentIdx;
+  }, [currentIdx]);
+
+  // Build and update queue with new alerts inserted after current
+  useEffect(() => {
+    // Get flattened alerts
+    const flatAlerts = getFlattedAlerts();
+    
     // Compute keys for all alerts
     const flatAlertKeys = flatAlerts.map(getAlertKey);
-
+    
     // On first load, initialize seenAlertKeys with all current alert keys
     if (!hasInitializedSeen && flatAlertKeys.length > 0) {
       setSeenAlertKeys(new Set(flatAlertKeys));
@@ -130,20 +145,53 @@ export function useAlertOverlay() {
       return;
     }
 
-    // Partition alerts into new and seen
+    // Reset the newAlertsRef to ensure we're only tracking truly new alerts
+    // this prevents previously seen alerts from being marked as new again
+    const currentlyNew = new Set(newAlertsRef.current);
+
+    // Find new alerts (those not in seenAlertKeys)
     const newAlerts: AlertDisplay[] = [];
-    const seenAlerts: AlertDisplay[] = [];
-    flatAlerts.forEach((alert, i) => {
-      const key = flatAlertKeys[i];
+    const existingAlerts: AlertDisplay[] = [];
+    
+    flatAlerts.forEach((alert) => {
+      const key = getAlertKey(alert);
       if (!seenAlertKeys.has(key)) {
         newAlerts.push(alert);
+        // Only add to newAlertsRef if it wasn't previously tracked as new
+        // or it was already in the set of new alerts
+        if (!currentlyNew.has(key)) {
+          newAlertsRef.current.add(key);
+        }
       } else {
-        seenAlerts.push(alert);
+        existingAlerts.push(alert);
       }
     });
 
-    // Stack all new alerts at the beginning of the queue
-    setQueue([...newAlerts, ...seenAlerts]);
+    // Remove any alerts from newAlertsRef that are no longer in the alert feed
+    const allCurrentKeys = new Set(flatAlertKeys);
+    newAlertsRef.current.forEach(key => {
+      if (!allCurrentKeys.has(key)) {
+        newAlertsRef.current.delete(key);
+      }
+    });
+
+    // If there are new alerts, insert them after current position
+    if (newAlerts.length > 0 && queue.length > 0) {
+      const currentPos = currentPositionRef.current; 
+      const nextPosition = (currentPos + 1) % queue.length;
+      
+      // Create a new queue with the new alerts inserted after current position
+      const updatedQueue = [...queue];
+      updatedQueue.splice(nextPosition, 0, ...newAlerts);
+      setQueue(updatedQueue);
+    } else if (newAlerts.length > 0) {
+      // If queue was empty, just add the new alerts
+      setQueue([...newAlerts]);
+    } else if (existingAlerts.length !== queue.length) {
+      // If no new alerts but the count changed, update the queue
+      setQueue([...existingAlerts]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alerts, mergedAlertTypes, hasInitializedSeen, seenAlertKeys]);
 
   // Update alerts length ref when queue changes
@@ -154,7 +202,7 @@ export function useAlertOverlay() {
   // Compute a stable key for the current alert
   const currentAlert = queue[currentIdx] || null;
   const alertKey = currentAlert ? getAlertKey(currentAlert) : '';
-  const isCurrentAlertNew = currentAlert && !seenAlertKeys.has(alertKey);
+  const isCurrentAlertNew = currentAlert ? newAlertsRef.current.has(alertKey) : false;
 
   // When scrollInfo changes, recalculate durations
   useEffect(() => {
@@ -172,32 +220,85 @@ export function useAlertOverlay() {
     setDisplayDuration(totalDisplay);
   }, [scrollInfo, bufferTime]);
 
+  // Play sound for new alerts
+  useEffect(() => {
+    if (!isCurrentAlertNew || !currentAlert) return;
+    const passive = isPassiveMode(searchParams);
+    if (!passive) {
+      if (!audioRef.current) {
+        audioRef.current = new window.Audio("/alert-default.mp3");
+      }
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
+  }, [isCurrentAlertNew, currentAlert, alertKey, searchParams]);
+
   // Control scroll and cycling
   useEffect(() => {
     if (alertsLengthRef.current <= 1) return;
+    
+    // Clear any existing transition timers to prevent overlap
+    if (transitionTimeout.current) {
+      clearTimeout(transitionTimeout.current);
+      transitionTimeout.current = null;
+    }
+    
     setStartScroll(false); // reset scroll
+    
     // Start scroll after a short delay to ensure AlertAreaBar is rendered
     const scrollStart = setTimeout(() => {
       setStartScroll(true);
     }, 50); // 50ms delay to allow DOM update
+    
     // Advance to next alert after displayDuration
     const interval = setTimeout(() => {
-      setIsTransitioning(true);
-      transitionTimeout.current = setTimeout(() => {
-        setCurrentIdx((idx) => (idx + 1) % alertsLengthRef.current);
-        setIsTransitioning(false);
-      }, 300);
+      // Only transition if we're still showing the same alert
+      // This prevents race conditions when the queue changes
+      if (getAlertKey(queue[currentIdx] || null) === alertKey) {
+        setIsTransitioning(true);
+        transitionTimeout.current = setTimeout(() => {
+          // Double-check we haven't already changed indices
+          if (currentPositionRef.current === currentIdx) {
+            // Batch mark as seen and advance index so alert is never shown twice
+            if (isCurrentAlertNew && currentAlert) {
+              const key = alertKey;
+              flushSync(() => {
+                setSeenAlertKeys(prev => new Set([...prev, key]));
+                // Remove from newAlertsRef
+                const newSet = new Set(newAlertsRef.current);
+                newSet.delete(key);
+                newAlertsRef.current = newSet;
+                setCurrentIdx((idx) => (idx + 1) % alertsLengthRef.current);
+              });
+            } else {
+              setCurrentIdx((idx) => (idx + 1) % alertsLengthRef.current);
+            }
+          }
+        }, 300);
+      }
     }, displayDuration);
+    
     return () => {
       clearTimeout(scrollStart);
       clearTimeout(interval);
       if (transitionTimeout.current) clearTimeout(transitionTimeout.current);
     };
-  }, [alertKey, displayDuration]);
+  }, [alertKey, displayDuration, queue, currentIdx, isCurrentAlertNew, currentAlert]);
 
+  // Reset transition state when currentIdx changes
   useEffect(() => {
-    setIsTransitioning(false);
-    if (transitionTimeout.current) clearTimeout(transitionTimeout.current);
+    // Immediately clear any existing transition timeout
+    if (transitionTimeout.current) {
+      clearTimeout(transitionTimeout.current);
+      transitionTimeout.current = null;
+    }
+    
+    // Set isTransitioning to false after a very brief delay to ensure smooth transition
+    const resetTimeout = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 50);
+    
+    return () => clearTimeout(resetTimeout);
   }, [currentIdx]);
 
   useEffect(() => {
@@ -216,24 +317,6 @@ export function useAlertOverlay() {
       setCurrentIdx(0);
     }
   }, [queue]);
-
-  // Play sound and mark as seen for new alerts
-  useEffect(() => {
-    if (!isCurrentAlertNew || !currentAlert) return;
-    const passive = isPassiveMode(searchParams);
-    if (!passive) {
-      if (!audioRef.current) {
-        audioRef.current = new window.Audio("/alert-default.mp3");
-      }
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
-    }
-    // Mark as seen after displayDuration
-    const timeout = setTimeout(() => {
-      setSeenAlertKeys(prev => new Set(prev).add(alertKey));
-    }, displayDuration);
-    return () => clearTimeout(timeout);
-  }, [isCurrentAlertNew, currentAlert, alertKey, displayDuration, searchParams]);
 
   // Reset queue index to 0 when filters (searchParams) change
   useEffect(() => {

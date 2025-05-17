@@ -3,6 +3,7 @@ import { DateTime } from "luxon";
 import { US_STATES } from "../config/states";
 
 export type NWSAlertProperties = {
+  id: string;
   event: string;
   headline: string;
   areaDesc: string;
@@ -23,9 +24,9 @@ export type NWSAlertGrouped = {
   [key: string]: NWSAlertProperties[];
 };
 
-export function parseAlerts(features: { properties: NWSAlertProperties & { event: string; headline: string; areaDesc: string; ends: string; description: string; geocode?: { UGC?: string[]; SAME?: string[]; [key: string]: string[] | undefined; } } }[]): NWSAlertGrouped {
+export function parseAlerts(features: { id: string; properties: NWSAlertProperties & { event: string; headline: string; areaDesc: string; ends: string; description: string; geocode?: { UGC?: string[]; SAME?: string[]; [key: string]: string[] | undefined; } } }[]): NWSAlertGrouped {
   const grouped: NWSAlertGrouped = {};
-  for (const { properties } of features) {
+  for (const { id, properties } of features) {
     const event = properties.event;
     let type: string | null = null;
     if (event.includes("Tornado Warning")) {
@@ -42,6 +43,7 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
       if (isObserved) prefix += "OBSERVED ";
       if (isEmergency) prefix += "EMERGENCY ";
       const alertProps: NWSAlertProperties = {
+        id,
         event: prefix + properties.event,
         headline: prefix + properties.headline,
         areaDesc: properties.areaDesc,
@@ -60,6 +62,7 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
     else if (event.includes("Severe Thunderstorm Watch")) type = "SVA";
     if (type && !event.includes("Tornado Warning")) {
       const alertProps: NWSAlertProperties = {
+        id,
         event: properties.event,
         headline: properties.headline,
         areaDesc: properties.areaDesc,
