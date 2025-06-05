@@ -26,14 +26,9 @@ export function AboutDialog({ open, onOpenChange }: { open?: boolean, onOpenChan
             <DialogDescription className="text-base mt-0.5">v{appVersion}</DialogDescription>
           </div>
         </DialogHeader>
-        <div className="mt-2 text-sm text-muted-foreground">Created by <span className="font-semibold">Brycero</span></div>
+        <div className="mt-2 text-sm text-muted-foreground">Created by <a href="https://github.com/Brycero" target="_blank" rel="noopener noreferrer" className="font-semibold no-underline hover:text-primary">Brycero</a></div>
         <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground hover:text-primary">
-          <a
-            href="https://www.gnu.org/licenses/gpl-3.0.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1"
-          >
+          <a href="https://github.com/Brycero/overwarn/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
             <Scale className="w-4 h-4" />
             GPL-3.0 License
           </a>
@@ -46,7 +41,7 @@ export function AboutDialog({ open, onOpenChange }: { open?: boolean, onOpenChan
         </div>
         <DialogFooter className="w-full mt-4 flex items-center !flex-col !gap-1 !justify-center">
           <div className="text-center text-xs text-muted-foreground opacity-80">&copy; {currentYear} Mirra</div>
-          <div className="text-center text-xs text-muted-foreground opacity-80">A <span className="font-semibold">Mirra</span> product</div>
+          <div className="text-center text-xs text-muted-foreground opacity-80">A <a href="https://mirra.tv" target="_blank" rel="noopener noreferrer" className="font-semibold no-underline hover:text-primary">Mirra</a> product</div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

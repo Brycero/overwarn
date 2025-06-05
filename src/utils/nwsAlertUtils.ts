@@ -18,6 +18,9 @@ export type NWSAlertProperties = {
     AWIPSidentifier?: string[];
     tornadoDetection?: string[];
   };
+  isPDS?: boolean;
+  isObserved?: boolean;
+  isEmergency?: boolean;
 };
 
 export type NWSAlertGrouped = {
@@ -38,19 +41,19 @@ export function parseAlerts(features: { id: string; properties: NWSAlertProperti
                          properties.event?.toUpperCase().includes("TORNADO EMERGENCY") ||
                          properties.headline?.toUpperCase().includes("TORNADO EMERGENCY");
       type = isEmergency ? "TOR_EMERGENCY" : "TOR";
-      let prefix = "";
-      if (isPDS) prefix += "PDS ";
-      if (isObserved) prefix += "OBSERVED ";
-      if (isEmergency) prefix += "EMERGENCY ";
+      
       const alertProps: NWSAlertProperties = {
         id,
-        event: prefix + properties.event,
-        headline: prefix + properties.headline,
+        event: properties.event,
+        headline: properties.headline,
         areaDesc: properties.areaDesc,
         ends: properties.ends,
         description: properties.description,
         geocode: properties.geocode,
         parameters: properties.parameters,
+        isPDS,
+        isObserved,
+        isEmergency,
       };
       if (!grouped[type]) grouped[type] = [];
       grouped[type].push(alertProps);

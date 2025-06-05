@@ -17,6 +17,9 @@ export type AlertDisplay = {
   expires: string;
   geocode: NWSAlertProperties["geocode"];
   parameters: NWSAlertProperties["parameters"];
+  isPDS?: boolean;
+  isObserved?: boolean;
+  isEmergency?: boolean;
 };
 
 export function useAlertOverlay() {
@@ -108,19 +111,30 @@ export function useAlertOverlay() {
   // Process alerts into a flat list
   const getFlattedAlerts = () => {
     return mergedAlertTypes.flatMap(({ key, label, color }) =>
-      (alerts[key] || []).map((a: NWSAlertProperties) => ({
-        id: a.id,
-        label: (a.event.startsWith("PDS") ? "PDS " : "") +
-          (a.event.includes("OBSERVED") ? "OBSERVED " : "") +
-          (a.event.includes("EMERGENCY") ? "EMERGENCY " : "") +
-          label,
-        color, // always hex
-        headline: a.headline,
-        area: a.areaDesc,
-        expires: a.ends,
-        geocode: a.geocode,
-        parameters: a.parameters,
-      }))
+      (alerts[key] || []).map((a: NWSAlertProperties) => {
+        let displayLabel = label;
+        if (key === "TOR") {
+          if (a.isPDS) {
+            displayLabel = "PDS " + displayLabel;
+          } else if (a.isObserved) {
+            displayLabel = "OBSERVED " + displayLabel;
+          }
+        }
+        
+        return {
+          id: a.id,
+          label: displayLabel,
+          color,
+          headline: a.headline,
+          area: a.areaDesc,
+          expires: a.ends,
+          geocode: a.geocode,
+          parameters: a.parameters,
+          isPDS: a.isPDS,
+          isObserved: a.isObserved,
+          isEmergency: a.isEmergency,
+        };
+      })
     );
   };
 
