@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -20,13 +20,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal } from "lucide-react";
+import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal, Info } from "lucide-react";
 import { US_STATES } from "@/config/states";
 import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { NWSOffice, NWSOfficeNames } from "@/types/nwsOffices";
 import { SettingsDialog } from "./Settings";
 import { useAlertOverlayContext } from "../providers/AlertOverlayProvider";
+import { AboutDialog } from "./About";
 
 function formatQueryParams(params: URLSearchParams): string {
   const formattedParams = new URLSearchParams();
@@ -66,7 +67,7 @@ function formatQueryParams(params: URLSearchParams): string {
   return decodeURIComponent(formattedParams.toString());
 }
 
-function AppMenuInner({ children }: { children?: React.ReactNode }) {
+function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, setAboutOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -99,6 +100,8 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
         .split(",")
         .map((type) => type)
     : [];
+
+  const [showNewCircle, setShowNewCircle] = useState(true);
 
   const updateURL = (newStates: string[], newOffices: string[]) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -250,6 +253,16 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
   // Calculate total count for 'All Alerts' (excluding TOR_EMERGENCY)
   const allAlertsCount = ALERT_TYPES.filter(type => type.key !== "TOR_EMERGENCY")
     .reduce((sum, type) => sum + (alertTypeCounts[type.key] || 0), 0);
+
+  // The useEffect that sets showNewCircle based on seenSettings in localStorage on mount is still needed, but remove any redundant comments or code about hiding the circle elsewhere.
+  useEffect(() => {
+    const seenSettings = localStorage.getItem("seenSettings");
+    if (seenSettings) {
+      setShowNewCircle(false);
+    }
+  }, []);
+
+  const handleSeenSettings = () => setShowNewCircle(false);
 
   return (
     <DropdownMenu modal={false}>
@@ -490,8 +503,16 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
           <DropdownMenuSubTrigger className="w-full flex items-center gap-2">
             <MoreHorizontal className="w-4 h-4" />
             <span className="font-medium">More Options</span>
+            <span
+              id="new-circle"
+              className={`ml-0.5 w-2 h-2 bg-blue-500 rounded-full ${!showNewCircle ? "hidden" : ""}`}
+            />
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
+            <DropdownMenuItem onSelect={() => setAboutOpen(true)}>
+              <Info className="w-4 h-4" />
+              <span>About</span>
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href="https://github.com/brycero/overwarn/issues" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                 <Bug className="w-4 h-4" />
@@ -504,7 +525,7 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                 View on GitHub
               </a>
             </DropdownMenuItem>
-            <SettingsDialog />
+            <SettingsDialog onSeenSettings={handleSeenSettings} showNewBadge={showNewCircle} />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>
@@ -513,9 +534,11 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
 }
 
 export default function AppMenu(props: { children?: React.ReactNode }) {
+  const [aboutOpen, setAboutOpen] = React.useState(false);
   return (
     <Suspense fallback={null}>
-      <AppMenuInner {...props} />
+      <AppMenuInner {...props} setAboutOpen={setAboutOpen} />
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </Suspense>
   );
 }

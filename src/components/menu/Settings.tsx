@@ -20,7 +20,7 @@ const FONT_OPTIONS = [
   { label: "Monospace", value: "monospace" },
 ];
 
-export function SettingsDialog() {
+export function SettingsDialog({ onSeenSettings, showNewBadge }: { onSeenSettings?: () => void, showNewBadge?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -55,14 +55,12 @@ export function SettingsDialog() {
   }, [zoneParam]);
 
   // --- New Alert Badge/Sound Setting ---
-  const [showNewBadge, setShowNewBadge] = useState(() => !isPassiveMode(searchParams));
-  // Keep toggle in sync with query param
+  const [showNewAlertBadge, setShowNewAlertBadge] = useState(() => !isPassiveMode(searchParams));
   useEffect(() => {
-    setShowNewBadge(!isPassiveMode(searchParams));
+    setShowNewAlertBadge(!isPassiveMode(searchParams));
   }, [searchParams]);
-  // Handle toggle change
   const handleShowNewBadgeChange = (checked: boolean) => {
-    setShowNewBadge(checked);
+    setShowNewAlertBadge(checked);
     const params = setPassiveMode(searchParams, !checked);
     router.replace(`${pathname}${params.toString() ? `?${params}` : ""}`);
   };
@@ -135,16 +133,24 @@ export function SettingsDialog() {
     const noSpaces = e.target.value.replace(/\s+/g, "");
     setZoneInput(noSpaces);
   };
+  
+  // Set seenSettings to true when Settings is clicked
+  const handleSettingsClick = () => {
+    localStorage.setItem("seenSettings", "true");
+    if (onSeenSettings) onSeenSettings();
+  };
 
   return (
     <Suspense fallback={null}>
       <Dialog onOpenChange={handleDialogOpenChange}>
-        <DropdownMenuItem asChild onSelect={e => e.preventDefault()}>
+        <DropdownMenuItem asChild onSelect={e => e.preventDefault()} onClick={handleSettingsClick}>
           <DialogTrigger asChild>
             <button type="button" className="w-full flex items-center gap-2">
               <SettingsIcon className="w-4 h-4" />
               Settings
-              <span className="ml-2 bg-muted px-1.5 py-0.5 rounded text-xs font-medium text-muted-foreground tracking-wider">Coming Soon</span>
+              {showNewBadge && (
+                <span className="ml-2 bg-blue-500 px-1.5 py-0.5 rounded text-xs font-medium text-white tracking-wider">NEW</span>
+              )}
             </button>
           </DialogTrigger>
         </DropdownMenuItem>
@@ -154,14 +160,14 @@ export function SettingsDialog() {
               <SettingsIcon className="w-5 h-5" /> Settings
             </DialogTitle>
             <DialogDescription>
-              Advanced settings for your Overwarn overlay.
+              Configure settings for your Overwarn overlay.
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-6 mt-2" onSubmit={e => e.preventDefault()}>
             <div className="flex items-center gap-2">
               <Checkbox
                 id="show-new-badge-checkbox"
-                checked={showNewBadge}
+                checked={showNewAlertBadge}
                 onCheckedChange={checked => handleShowNewBadgeChange(!!checked)}
               />
               <label htmlFor="show-new-badge-checkbox" className="text-sm font-medium select-none">
@@ -208,11 +214,11 @@ export function SettingsDialog() {
                   ))}
                 </SelectContent>
               </Select>
-              <span className="ml-2 bg-muted px-1.5 py-0.5 rounded text-xs font-medium text-muted-foreground uppercase tracking-wider">Coming Soon</span>
+              <span className="bg-muted px-1.5 py-0.5 rounded text-xs font-medium text-muted-foreground uppercase tracking-wider">Coming Soon</span>
             </div>
-            <Accordion type="single" collapsible className="border rounded-md bg-muted/30">
+            <Accordion type="single" collapsible className="border rounded-md bg-muted/30 hover:bg-muted/50 focus:bg-muted/50">
               <AccordionItem value="alert-colors">
-                <AccordionTrigger className="px-2 text-sm font-medium flex items-center gap-2 ml-2">
+                <AccordionTrigger className="px-2 text-sm font-medium flex items-center gap-2 ml-2 hover:no-underline focus:no-underline">
                   Custom Colors
                   <span className="flex items-center gap-1 ml-auto text-muted-foreground text-xs font-medium uppercase">
                     <FlaskConical className="w-4 h-4 text-muted-foreground" />
