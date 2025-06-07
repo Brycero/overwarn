@@ -1,14 +1,17 @@
 export const US_STATES = [
   { code: "AL", name: "Alabama" },
   { code: "AK", name: "Alaska" },
+  { code: "AS", name: "American Samoa" },
   { code: "AZ", name: "Arizona" },
   { code: "AR", name: "Arkansas" },
   { code: "CA", name: "California" },
   { code: "CO", name: "Colorado" },
   { code: "CT", name: "Connecticut" },
+  { code: "DC", name: "District of Columbia" },
   { code: "DE", name: "Delaware" },
   { code: "FL", name: "Florida" },
   { code: "GA", name: "Georgia" },
+  { code: "GU", name: "Guam" },
   { code: "HI", name: "Hawaii" },
   { code: "ID", name: "Idaho" },
   { code: "IL", name: "Illinois" },
@@ -33,6 +36,7 @@ export const US_STATES = [
   { code: "NY", name: "New York" },
   { code: "NC", name: "North Carolina" },
   { code: "ND", name: "North Dakota" },
+  { code: "MP", name: "Northern Mariana Islands" },
   { code: "OH", name: "Ohio" },
   { code: "OK", name: "Oklahoma" },
   { code: "OR", name: "Oregon" },
@@ -45,9 +49,10 @@ export const US_STATES = [
   { code: "TX", name: "Texas" },
   { code: "UT", name: "Utah" },
   { code: "VT", name: "Vermont" },
+  { code: "VI", name: "Virgin Islands" },
   { code: "VA", name: "Virginia" },
   { code: "WA", name: "Washington" },
   { code: "WV", name: "West Virginia" },
   { code: "WI", name: "Wisconsin" },
   { code: "WY", name: "Wyoming" }
-].sort((a, b) => a.name.localeCompare(b.name)); 
+]; 

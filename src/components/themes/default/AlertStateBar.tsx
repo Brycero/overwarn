@@ -1,5 +1,5 @@
 import React from "react";
-import { getStates, formatExpiresTime } from "../../utils/nwsAlertUtils";
+import { getStates, formatExpiresTime } from "../../../utils/nwsAlertUtils";
 
 type AlertStateBarProps = {
   area: string | null;
@@ -12,7 +12,7 @@ type AlertStateBarProps = {
 export default function AlertStateBar({ area, geocode, expires, headline, isTransitioning }: AlertStateBarProps) {
   return (
     <div 
-      className="flex items-center justify-start px-6 py-2 text-white font-bold text-xl shadow row-span-1 col-span-3 drop-shadow-md uppercase whitespace-nowrap overflow-hidden text-ellipsis border-t border-neutral-700" 
+      className="flex items-center justify-start px-6 py-2 text-white font-bold text-xl shadow row-span-1 col-span-1 drop-shadow-md uppercase whitespace-nowrap overflow-hidden text-ellipsis border-t border-neutral-700" 
       style={{ 
         textShadow: '1px 1px 4px rgba(0,0,0,0.7)',
         backgroundColor: '#4a3238'

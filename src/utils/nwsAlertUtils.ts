@@ -1,7 +1,9 @@
 // Utility functions for parsing and handling NWS alerts
 import { DateTime } from "luxon";
+import { US_STATES } from "../config/states";
 
 export type NWSAlertProperties = {
+  id: string;
   event: string;
   headline: string;
   areaDesc: string;
@@ -16,15 +18,18 @@ export type NWSAlertProperties = {
     AWIPSidentifier?: string[];
     tornadoDetection?: string[];
   };
+  isPDS?: boolean;
+  isObserved?: boolean;
+  isEmergency?: boolean;
 };
 
 export type NWSAlertGrouped = {
   [key: string]: NWSAlertProperties[];
 };
 
-export function parseAlerts(features: { properties: NWSAlertProperties & { event: string; headline: string; areaDesc: string; ends: string; description: string; geocode?: { UGC?: string[]; SAME?: string[]; [key: string]: string[] | undefined; } } }[]): NWSAlertGrouped {
+export function parseAlerts(features: { id: string; properties: NWSAlertProperties & { event: string; headline: string; areaDesc: string; ends: string; description: string; geocode?: { UGC?: string[]; SAME?: string[]; [key: string]: string[] | undefined; } } }[]): NWSAlertGrouped {
   const grouped: NWSAlertGrouped = {};
-  for (const { properties } of features) {
+  for (const { id, properties } of features) {
     const event = properties.event;
     let type: string | null = null;
     if (event.includes("Tornado Warning")) {
@@ -36,18 +41,19 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
                          properties.event?.toUpperCase().includes("TORNADO EMERGENCY") ||
                          properties.headline?.toUpperCase().includes("TORNADO EMERGENCY");
       type = isEmergency ? "TOR_EMERGENCY" : "TOR";
-      let prefix = "";
-      if (isPDS) prefix += "PDS ";
-      if (isObserved) prefix += "OBSERVED ";
-      if (isEmergency) prefix += "EMERGENCY ";
+      
       const alertProps: NWSAlertProperties = {
-        event: prefix + properties.event,
-        headline: prefix + properties.headline,
+        id,
+        event: properties.event,
+        headline: properties.headline,
         areaDesc: properties.areaDesc,
         ends: properties.ends,
         description: properties.description,
         geocode: properties.geocode,
         parameters: properties.parameters,
+        isPDS,
+        isObserved,
+        isEmergency,
       };
       if (!grouped[type]) grouped[type] = [];
       grouped[type].push(alertProps);
@@ -59,6 +65,7 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
     else if (event.includes("Severe Thunderstorm Watch")) type = "SVA";
     if (type && !event.includes("Tornado Warning")) {
       const alertProps: NWSAlertProperties = {
+        id,
         event: properties.event,
         headline: properties.headline,
         areaDesc: properties.areaDesc,
@@ -74,15 +81,8 @@ export function parseAlerts(features: { properties: NWSAlertProperties & { event
   return grouped;
 }
 
-const STATE_MAP: { [abbr: string]: string } = {
-  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", PR: "Puerto Rico", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming"
-};
-
-// Inverted map for lookups by full state name
-const STATE_NAME_TO_ABBR: { [name: string]: string } = Object.entries(STATE_MAP).reduce(
-  (acc, [abbr, name]) => ({ ...acc, [name.toLowerCase()]: abbr }), 
-  {} as { [name: string]: string }
-);
+const STATE_MAP = Object.fromEntries(US_STATES.map(({ code, name }) => [code, name]));
+const STATE_NAME_TO_ABBR = Object.fromEntries(US_STATES.map(({ code, name }) => [name.toLowerCase(), code]));
 
 export function getStates(area: string, geocode?: { UGC?: string[] }) {
   const areaMatches = area.match(/,\s*([A-Z]{2})/g) || [];

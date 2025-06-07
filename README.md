@@ -2,7 +2,7 @@
 
 Overwarn is a real-time weather alert overlay for weather live streams. It fetches and displays active National Weather Service (NWS) warnings and watches in a visually prominent, broadcast-style overlay. The overlay cycles through active alerts, showing their type, affected states/counties, and expiration times.
 
-![Screenshot of Overwarn](https://i.imgur.com/ON3kya9.png)
+![Screenshot of Overwarn](https://i.imgur.com/BMswS73.png)
 
 ## How To Use
 
@@ -11,18 +11,32 @@ The easiest way to use Overwarn is on [the website](https://overwarn.mirra.tv). 
 ## Features
 
 - **Live NWS Alerts:** Fetches active warnings and watches from the [National Weather Service API](https://api.weather.gov/alerts/active).
+- **Customizable:** Easily customize the overlay to your liking, with filters for states, weather forecast offices, and alert types, and adjust alert colors.
+- **New Alerts:** Overwarn automatically fetches and displays new alerts as they are issued, playing an sound and showing a "NEW" indicator.
 - **Alert Types:** Supports different types of Tornado Warnings, Severe Thunderstorm Warnings, Flash Flood Warnings, Winter Storm Warnings, and Watches.
 - **Simple Overlay:** Displays alert type, affected area (states/counties), time remaining, and expiration time in a bold, easy-to-read overlay.
 - **Animated Cycling:** Automatically cycles through all active alerts with smooth transitions.
 - **Timezone-Aware:** Shows expiration times in the correct local timezone.
-- **Powerful Filters:** Only show alerts issued for certain states or by certain weather forecast offices.
-- **Query Parameters:** Supports URL query parameters so you can easily paste your filter settings across multiple apps and devices.
+- **Query Strings:** Supports URL query strings so you can easily paste your settings across multiple apps and devices.
 
 ## Self-Hosting
 
 Since Overwarn is open source, you can download and run your own version of Overwarn locally. Simply follow the instructions below, which are the same for any other Next.js application.
 
-1. **Install dependencies:**
+### Prerequisites
+
+- [Node.js](https://nodejs.org)
+- [Git](https://git-scm.com)
+
+### Steps
+
+1. **Download the code:**
+
+   ```bash
+   git clone https://github.com/brycero/overwarn.git
+   ```
+
+2. **Install dependencies:**
 
    ```bash
    npm install
@@ -34,7 +48,7 @@ Since Overwarn is open source, you can download and run your own version of Over
    bun install
    ```
 
-2. **Run the development server:**
+3. **Run the development server:**
 
    ```bash
    npm run dev
@@ -46,7 +60,7 @@ Since Overwarn is open source, you can download and run your own version of Over
    bun dev
    ```
 
-3. **Open your browser:**
+4. **Open your browser:**
 
    Visit [http://localhost:3000](http://localhost:3000) to see the overlay in action.
 
@@ -64,6 +78,9 @@ Simply put - the alternatives to Overwarn are either too complicated or too expe
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Geist font](https://vercel.com/font)
 - [Luxon](https://moment.github.io/luxon/#/)
+- [Tailwind CSS](https://tailwindcss.com)
+- [Shadcn UI](https://ui.shadcn.com)
+- [Lucide](https://lucide.dev)
 
 ## License
 

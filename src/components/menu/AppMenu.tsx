@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, Suspense, useEffect } from "react";
 import {
   DropdownMenu,
@@ -19,14 +20,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal } from "lucide-react";
+import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal, Info } from "lucide-react";
 import { US_STATES } from "@/config/states";
 import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { NWSOffice, NWSOfficeNames } from "@/types/nwsOffices";
 import { SettingsDialog } from "./Settings";
-import { parseAlerts } from "@/utils/nwsAlertUtils";
-import { applyQueryFilters } from "@/utils/queryParamUtils";
+import { useAlertOverlayContext } from "../providers/AlertOverlayProvider";
+import { AboutDialog } from "./About";
 
 function formatQueryParams(params: URLSearchParams): string {
   const formattedParams = new URLSearchParams();
@@ -38,7 +39,7 @@ function formatQueryParams(params: URLSearchParams): string {
   const stateParams = entries.filter(([key]) => key.toLowerCase() === "state");
   if (stateParams.length > 0) {
     const states = stateParams
-      .map(([value]) => decodeURIComponent(value).split(","))
+      .map(([, value]) => decodeURIComponent(value).split(","))
       .flat()
       .filter(Boolean);
     if (states.length > 0) {
@@ -50,7 +51,7 @@ function formatQueryParams(params: URLSearchParams): string {
   const wfoParams = entries.filter(([key]) => key.toLowerCase() === "wfo");
   if (wfoParams.length > 0) {
     const offices = wfoParams
-      .map(([value]) => decodeURIComponent(value).split(","))
+      .map(([, value]) => decodeURIComponent(value).split(","))
       .flat()
       .filter(Boolean);
     if (offices.length > 0) {
@@ -66,10 +67,11 @@ function formatQueryParams(params: URLSearchParams): string {
   return decodeURIComponent(formattedParams.toString());
 }
 
-function AppMenuInner({ children }: { children?: React.ReactNode }) {
+function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, setAboutOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { alertTypeCounts } = useAlertOverlayContext();
   
   // State filter params
   const stateParam = searchParams.get("state");
@@ -99,7 +101,7 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
         .map((type) => type)
     : [];
 
-  const [alertCounts, setAlertCounts] = useState<{ [key: string]: number }>({});
+  const [showNewCircle, setShowNewCircle] = useState(true);
 
   const updateURL = (newStates: string[], newOffices: string[]) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -122,13 +124,12 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
   // State filter handlers
   const handleStateSelect = (stateCode: string, checked: boolean) => {
     const states = new Set(selectedStates);
-    
     if (checked) {
       states.add(stateCode.toUpperCase());
+      states.delete("CONT"); // Deselect 'cont' if any other state is selected
     } else {
       states.delete(stateCode.toUpperCase());
     }
-
     updateURL(Array.from(states), selectedOffices);
   };
 
@@ -137,12 +138,13 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
   };
 
   const getSelectedStatesLabel = () => {
-    if (selectedStates.length === 0) return "All States";
+    if (selectedStates.length === 0) return "All States/Territories";
     if (selectedStates.length === 1) {
+      if (selectedStates[0] === "CONT") return "Lower 48 States";
       const state = US_STATES.find(s => s.code.toUpperCase() === selectedStates[0]);
-      return state ? state.name : "All States";
+      return state ? state.name : "All States/Territories";
     }
-    return `${selectedStates.length} states selected`;
+    return `${selectedStates.length} states/territories selected`;
   };
 
   const filteredStates = stateSearch.trim() === ""
@@ -248,41 +250,19 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
     router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    async function fetchAlerts() {
-      try {
-        const res = await fetch("https://api.weather.gov/alerts/active");
-        if (!res.ok) return;
-        const data = await res.json();
-        const parsedAlerts = parseAlerts(data.features || []);
-        // Use the same filters as the menu
-        const filteredAlerts = applyQueryFilters(parsedAlerts, {
-          state: stateParam || undefined,
-          wfo: wfoParam || undefined,
-          zone: searchParams.get("zone") || undefined,
-        });
-        // Count alerts by type
-        const counts: { [key: string]: number } = {};
-        for (const type of Object.keys(filteredAlerts)) {
-          counts[type] = filteredAlerts[type]?.length || 0;
-        }
-        if (isMounted) setAlertCounts(counts);
-      } catch (e) {
-        console.error('Failed to fetch alerts:', e);
-      }
-    }
-    fetchAlerts();
-    const interval = setInterval(fetchAlerts, 30000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [stateParam, wfoParam, searchParams]);
-
   // Calculate total count for 'All Alerts' (excluding TOR_EMERGENCY)
   const allAlertsCount = ALERT_TYPES.filter(type => type.key !== "TOR_EMERGENCY")
-    .reduce((sum, type) => sum + (alertCounts[type.key] || 0), 0);
+    .reduce((sum, type) => sum + (alertTypeCounts[type.key] || 0), 0);
+
+  // The useEffect that sets showNewCircle based on seenSettings in localStorage on mount is still needed, but remove any redundant comments or code about hiding the circle elsewhere.
+  useEffect(() => {
+    const seenSettings = localStorage.getItem("seenSettings");
+    if (seenSettings) {
+      setShowNewCircle(false);
+    }
+  }, []);
+
+  const handleSeenSettings = () => setShowNewCircle(false);
 
   return (
     <DropdownMenu modal={false}>
@@ -336,9 +316,9 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                     .toLowerCase()
                     .replace(/\b\w/g, (c) => c.toUpperCase())}
                 </span>
-                {alertCounts[type.key] > 0 && (
+                {alertTypeCounts[type.key] > 0 && (
                   <span className="ml-2 bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full min-w-[1.5em] text-center">
-                    {alertCounts[type.key]}
+                    {alertTypeCounts[type.key]}
                   </span>
                 )}
               </DropdownMenuCheckboxItem>
@@ -359,7 +339,7 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                   <Search className="h-3.5 w-3.5 text-muted-foreground mr-2" />
                   <input
                     type="text"
-                    placeholder="Search states..."
+                    placeholder="Search states/territories..."
                     className="flex h-9 w-full rounded-md bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground"
                     value={stateSearch}
                     onChange={(e) => handleSearchChange(e, setStateSearch)}
@@ -375,8 +355,25 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                   handleAllStates();
                 }}
               >
-                All States
+                All States/Territories
               </DropdownMenuItem>
+              {/* Contiguous US option */}
+              <DropdownMenuCheckboxItem
+                className="font-medium"
+                checked={selectedStates.length === 1 && selectedStates[0] === "CONT"}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    // Set only 'cont' as the state param
+                    updateURL(["CONT"], selectedOffices);
+                  } else {
+                    // Deselect 'cont', show all states
+                    updateURL([], selectedOffices);
+                  }
+                }}
+                onSelect={e => e.preventDefault()}
+              >
+                Lower 48 States
+              </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
               {filteredStates.length === 0 ? (
                 <div className="px-2 py-4 text-center text-sm text-muted-foreground">
@@ -506,8 +503,16 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
           <DropdownMenuSubTrigger className="w-full flex items-center gap-2">
             <MoreHorizontal className="w-4 h-4" />
             <span className="font-medium">More Options</span>
+            <span
+              id="new-circle"
+              className={`ml-0.5 w-2 h-2 bg-blue-500 rounded-full ${!showNewCircle ? "hidden" : ""}`}
+            />
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
+            <DropdownMenuItem onSelect={() => setAboutOpen(true)}>
+              <Info className="w-4 h-4" />
+              <span>About</span>
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href="https://github.com/brycero/overwarn/issues" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                 <Bug className="w-4 h-4" />
@@ -520,7 +525,7 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
                 View on GitHub
               </a>
             </DropdownMenuItem>
-            <SettingsDialog />
+            <SettingsDialog onSeenSettings={handleSeenSettings} showNewBadge={showNewCircle} />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>
@@ -529,9 +534,11 @@ function AppMenuInner({ children }: { children?: React.ReactNode }) {
 }
 
 export default function AppMenu(props: { children?: React.ReactNode }) {
+  const [aboutOpen, setAboutOpen] = React.useState(false);
   return (
     <Suspense fallback={null}>
-      <AppMenuInner {...props} />
+      <AppMenuInner {...props} setAboutOpen={setAboutOpen} />
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </Suspense>
   );
 }
