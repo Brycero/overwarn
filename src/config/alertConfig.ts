@@ -1,11 +1,12 @@
 export const ALERT_TYPES = [
   { key: "TOR", label: "TORNADO WARNING", color: "bg-red-600" },
-  { key: "TOR_EMERGENCY", label: "TORNADO EMERGENCY", color: "bg-fuchsia-600" },
   { key: "SVR", label: "SEVERE T-STORM WARNING", color: "bg-yellow-500" },
   { key: "FFW", label: "FLASH FLOOD WARNING", color: "bg-green-500" },
+  { key: "FLW", label: "FLOOD WARNING", color: "bg-green-600" },
   { key: "WSW", label: "WINTER STORM WARNING", color: "bg-blue-500" },
   { key: "TOA", label: "TORNADO WATCH", color: "bg-pink-500" },
   { key: "SVA", label: "SEVERE T-STORM WATCH", color: "bg-orange-500" },
+  { key: "FFA", label: "FLOOD WATCH", color: "bg-green-600" },
 ];
 
 export const colorMap: { [key: string]: { base: string; light: string } } = {
@@ -17,6 +18,7 @@ export const colorMap: { [key: string]: { base: string; light: string } } = {
   "bg-orange-500": { base: "bg-orange-500", light: "bg-orange-300" },
   "bg-purple-600": { base: "bg-purple-600", light: "bg-purple-400" },
   "bg-fuchsia-600": { base: "bg-fuchsia-600", light: "bg-fuchsia-400" },
+  "bg-green-600": { base: "bg-green-600", light: "bg-green-500" },
   "default": { base: "bg-neutral-700", light: "bg-neutral-500" },
 };
 
@@ -39,4 +41,5 @@ export const TAILWIND_TO_HEX: Record<string, string> = {
   "bg-orange-300": "#fdba74",
   "bg-purple-400": "#c084fc",
   "bg-neutral-500": "#737373",
+  "bg-green-600": "#16a34a",
 }; 

@@ -250,8 +250,8 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
     router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
   };
 
-  // Calculate total count for 'All Alerts' (excluding TOR_EMERGENCY)
-  const allAlertsCount = ALERT_TYPES.filter(type => type.key !== "TOR_EMERGENCY")
+  // Calculate total count for 'All Alerts'
+  const allAlertsCount = ALERT_TYPES
     .reduce((sum, type) => sum + (alertTypeCounts[type.key] || 0), 0);
 
   // The useEffect that sets showNewCircle based on seenSettings in localStorage on mount is still needed, but remove any redundant comments or code about hiding the circle elsewhere.
@@ -302,7 +302,7 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
               )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {ALERT_TYPES.filter(type => type.key !== "TOR_EMERGENCY").map((type) => (
+            {ALERT_TYPES.map((type) => (
               <DropdownMenuCheckboxItem
                 key={type.key}
                 checked={selectedTypes.includes(type.key)}

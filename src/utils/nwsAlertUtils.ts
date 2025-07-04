@@ -28,11 +28,35 @@ export type NWSAlertGrouped = {
 };
 
 export function parseAlerts(features: { id: string; properties: NWSAlertProperties & { event: string; headline: string; areaDesc: string; ends: string; description: string; geocode?: { UGC?: string[]; SAME?: string[]; [key: string]: string[] | undefined; } } }[]): NWSAlertGrouped {
+  const EVENT_TYPE_MAP: { pattern: RegExp; type: string }[] = [
+    { pattern: /Tornado Warning/i, type: "TOR" },
+    { pattern: /Severe Thunderstorm Warning/i, type: "SVR" },
+    { pattern: /Flash Flood Warning/i, type: "FFW" },
+    { pattern: /Winter Storm Warning/i, type: "WSW" },
+    { pattern: /Tornado Watch/i, type: "TOA" },
+    { pattern: /Severe Thunderstorm Watch/i, type: "SVA" },
+    { pattern: /Flood Watch/i, type: "FFA" },
+    { pattern: /Flood Warning/i, type: "FLW" },
+  ];
+
   const grouped: NWSAlertGrouped = {};
   for (const { id, properties } of features) {
     const event = properties.event;
     let type: string | null = null;
-    if (event.includes("Tornado Warning")) {
+    let isTornadoWarning = false;
+    let isFlashFloodWarning = false;
+
+    for (const { pattern, type: mappedType } of EVENT_TYPE_MAP) {
+      if (pattern.test(event)) {
+        type = mappedType;
+        if (mappedType === "TOR") isTornadoWarning = true;
+        if (mappedType === "FFW") isFlashFloodWarning = true;
+        break;
+      }
+    }
+
+    // Tornado Warning logic (includes emergency detection)
+    if (isTornadoWarning && type) {
       const isPDS = properties.description?.toUpperCase().includes("PARTICULARLY DANGEROUS SITUATION");
       const isObserved = properties.parameters?.tornadoDetection?.some(
         (val) => val.toUpperCase() === "OBSERVED"
@@ -40,7 +64,6 @@ export function parseAlerts(features: { id: string; properties: NWSAlertProperti
       const isEmergency = properties.description?.toUpperCase().includes("TORNADO EMERGENCY") ||
                          properties.event?.toUpperCase().includes("TORNADO EMERGENCY") ||
                          properties.headline?.toUpperCase().includes("TORNADO EMERGENCY");
-      type = isEmergency ? "TOR_EMERGENCY" : "TOR";
       
       const alertProps: NWSAlertProperties = {
         id,
@@ -58,12 +81,26 @@ export function parseAlerts(features: { id: string; properties: NWSAlertProperti
       if (!grouped[type]) grouped[type] = [];
       grouped[type].push(alertProps);
     }
-    else if (event.includes("Severe Thunderstorm Warning")) type = "SVR";
-    else if (event.includes("Flash Flood Warning")) type = "FFW";
-    else if (event.includes("Winter Storm Warning")) type = "WSW";
-    else if (event.includes("Tornado Watch")) type = "TOA";
-    else if (event.includes("Severe Thunderstorm Watch")) type = "SVA";
-    if (type && !event.includes("Tornado Warning")) {
+    // Flash Flood Warning logic (includes emergency detection)
+    else if (isFlashFloodWarning && type) {
+      const isEmergency = properties.description?.toUpperCase().includes("FLASH FLOOD EMERGENCY") ||
+                         properties.event?.toUpperCase().includes("FLASH FLOOD EMERGENCY") ||
+                         properties.headline?.toUpperCase().includes("FLASH FLOOD EMERGENCY");
+      
+      const alertProps: NWSAlertProperties = {
+        id,
+        event: properties.event,
+        headline: properties.headline,
+        areaDesc: properties.areaDesc,
+        ends: properties.ends,
+        description: properties.description,
+        geocode: properties.geocode,
+        parameters: properties.parameters,
+        isEmergency,
+      };
+      if (!grouped[type]) grouped[type] = [];
+      grouped[type].push(alertProps);
+    } else if (type) {
       const alertProps: NWSAlertProperties = {
         id,
         event: properties.event,
@@ -129,9 +166,11 @@ export function getCountiesWithStates(area: string) {
     .join(', ');
 }
 
-export function getExpiresIn(expires: string) {
+export function getExpiresIn(expires: string | null | undefined) {
+  if (!expires) return "";
   const now = new Date();
   const end = new Date(expires);
+  if (isNaN(end.getTime())) return "";
   const diff = Math.max(0, end.getTime() - now.getTime());
   const hours = Math.floor(diff / 1000 / 60 / 60);
   const mins = Math.floor((diff / 1000 / 60) % 60);
@@ -163,10 +202,13 @@ export function getAlertTimezoneFromHeadline(headline: string) {
   return "UTC";
 }
 
-export function formatExpiresTime(expires: string, headline: string) {
+export function formatExpiresTime(expires: string | null | undefined, headline: string) {
+  if (!expires) return "";
   const tz = getAlertTimezoneFromHeadline(headline);
-  const dt = DateTime.fromISO(expires, { zone: "utc" }).setZone(tz);
-  return dt.toFormat("EEE h:mma") + " " + dt.offsetNameShort;
+  const dt = DateTime.fromISO(expires, { zone: "utc" });
+  if (!dt.isValid) return "";
+  const dtZoned = dt.setZone(tz);
+  return dtZoned.toFormat("EEE h:mma") + " " + dtZoned.offsetNameShort;
 }
 
 /**

@@ -113,7 +113,18 @@ export function useAlertOverlay() {
     return mergedAlertTypes.flatMap(({ key, label, color }) =>
       (alerts[key] || []).map((a: NWSAlertProperties) => {
         let displayLabel = label;
-        if (key === "TOR") {
+        let displayColor = color;
+        
+        // Handle emergency alerts with special colors and labels
+        if (a.isEmergency) {
+          if (key === "TOR") {
+            displayLabel = "TORNADO EMERGENCY";
+            displayColor = TAILWIND_TO_HEX["bg-fuchsia-600"] || "#c026d3";
+          } else if (key === "FFW") {
+            displayLabel = "FLASH FLOOD EMERGENCY";
+            // TODO: change color for Flash Flood Emergency in future?
+          }
+        } else if (key === "TOR") {
           if (a.isPDS) {
             displayLabel = "PDS " + displayLabel;
           } else if (a.isObserved) {
@@ -124,7 +135,7 @@ export function useAlertOverlay() {
         return {
           id: a.id,
           label: displayLabel,
-          color,
+          color: displayColor,
           headline: a.headline,
           area: a.areaDesc,
           expires: a.ends,
