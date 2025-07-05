@@ -37,6 +37,10 @@ export function parseAlerts(features: { id: string; properties: NWSAlertProperti
     { pattern: /Severe Thunderstorm Watch/i, type: "SVA" },
     { pattern: /Flood Watch/i, type: "FFA" },
     { pattern: /Flood Warning/i, type: "FLW" },
+    { pattern: /Tropical Storm Watch/i, type: "TRA" },
+    { pattern: /Tropical Storm Warning/i, type: "TRW" },
+    { pattern: /Hurricane Watch/i, type: "HUA" },
+    { pattern: /Hurricane Warning/i, type: "HUW" },
   ];
 
   const grouped: NWSAlertGrouped = {};
@@ -172,9 +176,14 @@ export function getExpiresIn(expires: string | null | undefined) {
   const end = new Date(expires);
   if (isNaN(end.getTime())) return "";
   const diff = Math.max(0, end.getTime() - now.getTime());
-  const hours = Math.floor(diff / 1000 / 60 / 60);
-  const mins = Math.floor((diff / 1000 / 60) % 60);
-  return `${hours > 0 ? `${hours} HR ` : ""}${mins} MIN`;
+  const totalMinutes = Math.floor(diff / 1000 / 60);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const mins = totalMinutes % 60;
+  if (days > 0) {
+    return `${days} DAY${days > 1 ? 'S' : ''} ${hours} HR${hours !== 1 ? 'S' : ''} ${mins} MIN`;
+  }
+  return `${hours > 0 ? `${hours} HR${hours !== 1 ? 'S' : ''} ` : ""}${mins} MIN`;
 }
 
 const TZ_ABBR_MAP: { [abbr: string]: string } = {

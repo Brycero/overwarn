@@ -7,6 +7,10 @@ export const ALERT_TYPES = [
   { key: "TOA", label: "TORNADO WATCH", color: "bg-pink-500" },
   { key: "SVA", label: "SEVERE T-STORM WATCH", color: "bg-orange-500" },
   { key: "FFA", label: "FLOOD WATCH", color: "bg-green-600" },
+  { key: "TRA", label: "TROPICAL STORM WATCH", color: "bg-yellow-500" },
+  { key: "TRW", label: "TROPICAL STORM WARNING", color: "bg-red-600" },
+  { key: "HUA", label: "HURRICANE WATCH", color: "bg-orange-500" },
+  { key: "HUW", label: "HURRICANE WARNING", color: "bg-pink-500" },
 ];
 
 export const colorMap: { [key: string]: { base: string; light: string } } = {
