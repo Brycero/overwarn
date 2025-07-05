@@ -20,6 +20,7 @@ export type AlertDisplay = {
   isPDS?: boolean;
   isObserved?: boolean;
   isEmergency?: boolean;
+  alertType: string;
 };
 
 export function useAlertOverlay() {
@@ -144,6 +145,7 @@ export function useAlertOverlay() {
           isPDS: a.isPDS,
           isObserved: a.isObserved,
           isEmergency: a.isEmergency,
+          alertType: key,
         };
       })
     );

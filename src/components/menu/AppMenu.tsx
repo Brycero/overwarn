@@ -21,7 +21,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal, Info } from "lucide-react";
-import { US_STATES } from "@/config/states";
+import { US_STATES } from "@/types/states";
 import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { NWSOffice, NWSOfficeNames } from "@/types/nwsOffices";

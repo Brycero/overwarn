@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
 import { isZoneBased, getCounties, getStates, getCountiesWithStates } from "../../../utils/nwsAlertUtils";
 import { colorMap, TAILWIND_TO_HEX } from "../../../config/alertConfig";
+import { HAIL_SIZE_MAP } from "../../../types/hailSizes";
 
 // Utility to lighten a hex color by a given percent (0-100)
 function lightenHexColor(hex: string, percent = 20): string {
@@ -40,38 +41,86 @@ type AlertAreaBarProps = {
   bufferTime: number; // ms
   startScroll: boolean;
   onMeasureScroll?: (info: { scrollDistance: number; needsScroll: boolean }) => void;
+  alertType?: string;
+  parameters?: {
+    AWIPSidentifier?: string[];
+    tornadoDetection?: string[];
+    maxHailSize?: string[];
+    maxWindGust?: string[];
+    thunderstormDamageThreat?: string[];
+    flashFloodDamageThreat?: string[];
+  };
 };
 
 const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function AlertAreaBar({
-  area, geocode, isTransitioning, color, scrollDuration, bufferTime, startScroll, onMeasureScroll
+  area, geocode, isTransitioning, color, scrollDuration, bufferTime, startScroll, onMeasureScroll, alertType, parameters
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
+  const previousScrollContentRef = useRef<string>('');
 
   // Compute the actual scroll content string, memoized to avoid unnecessary recalculation
   const { scrollContent } = useMemo(() => {
     let label = "COUNTIES";
     let scrollContent = "";
+    
     if (area && !isZoneBased(area, geocode)) {
       const statesStr = getStates(area, geocode);
       const statesArr = statesStr.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
       const hasLouisiana = statesArr.includes("louisiana");
+      
       if (statesArr.length === 1) {
         if (hasLouisiana) {
           label = "PARISHES";
         } else {
           label = "COUNTIES";
         }
-        scrollContent = `${label}: ${getCounties(area).toUpperCase()}`;
       } else if (statesArr.length > 1) {
         label = hasLouisiana ? "COUNTIES/PARISHES" : "COUNTIES";
-        scrollContent = `${label}: ${getCountiesWithStates(area).toUpperCase()}`;
+      }
+      
+      // For SVR alerts, include hail and wind information
+      if (alertType === "SVR") {
+        const maxHailSize = parameters?.maxHailSize?.[0];
+        const maxWindGust = parameters?.maxWindGust?.[0];
+        const counties = getCountiesWithStates(area).toUpperCase();
+        let hailDesc = "";
+        let hailSizeKey = "";
+        if (maxHailSize) {
+          const match = maxHailSize.match(/([0-9]*\.[0-9]+|[0-9]+)/);
+          if (match) {
+            hailSizeKey = match[1].startsWith('.') ? '0' + match[1] : match[1];
+          }
+        }
+        if (hailSizeKey && HAIL_SIZE_MAP[hailSizeKey]) {
+          hailDesc = ` (${HAIL_SIZE_MAP[hailSizeKey]})`;
+        }
+        let svrPrefix = "";
+        const tornadoPossible = parameters?.tornadoDetection?.some(val => val.toUpperCase() === 'POSSIBLE');
+        if (tornadoPossible) {
+          svrPrefix += 'TORNADO: POSSIBLE | ';
+        }
+        if (maxHailSize && maxWindGust) {
+          svrPrefix += `HAIL: ${maxHailSize.toUpperCase()}\"${hailDesc.toUpperCase()} | WIND: ${maxWindGust.toUpperCase()} | `;
+        } else if (maxHailSize) {
+          svrPrefix += `HAIL: ${maxHailSize.toUpperCase()}\"${hailDesc.toUpperCase()} | `;
+        } else if (maxWindGust) {
+          svrPrefix += `WIND: ${maxWindGust.toUpperCase()} | `;
+        }
+        scrollContent = `${svrPrefix}${label}: ${counties}`;
+      } else {
+        if (statesArr.length === 1) {
+          scrollContent = `${label}: ${getCounties(area).toUpperCase()}`;
+        } else if (statesArr.length > 1) {
+          scrollContent = `${label}: ${getCountiesWithStates(area).toUpperCase()}`;
+        }
       }
     } else if (area) {
       scrollContent = area.toUpperCase();
     }
+    
     return { label, scrollContent };
-  }, [area, geocode]);
+  }, [area, geocode, alertType, parameters]);
 
   // Use getLightAreaBarColor for the background
   const bgColor = useMemo(() => getLightAreaBarColor(color), [color]);
@@ -98,8 +147,14 @@ const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function Aler
     const container = containerRef.current;
     const content = spanRef.current;
     if (!container || !content) return;
-    // Always reset scroll position
-    container.scrollLeft = 0;
+    
+    // Check if content actually changed - only reset scroll position if it did
+    const contentChanged = previousScrollContentRef.current !== scrollContent;
+    if (contentChanged) {
+      container.scrollLeft = 0;
+      previousScrollContentRef.current = scrollContent;
+    }
+    
     let animationFrameId: number;
     let start: number | null = null;
     let scrollDistance = 0;
@@ -110,6 +165,7 @@ const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function Aler
     const totalPadding = paddingLeft + paddingRight;
     scrollDistance = content.scrollWidth - (container.clientWidth - totalPadding);
     if (!startScroll || scrollDistance <= 0) return;
+    
     // Start scroll after bufferTime
     const scrollStartTimeout = setTimeout(() => {
       function step(timestamp: number) {

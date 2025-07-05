@@ -50,6 +50,8 @@ export default function AlertOverlayLayoutDefault() {
           bufferTime={bufferTime}
           startScroll={startScroll}
           onMeasureScroll={setScrollInfo}
+          alertType={alert ? alert.alertType : undefined}
+          parameters={alert ? alert.parameters : undefined}
         />
       </div>
     </div>

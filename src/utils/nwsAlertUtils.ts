@@ -1,6 +1,6 @@
 // Utility functions for parsing and handling NWS alerts
 import { DateTime } from "luxon";
-import { US_STATES } from "../config/states";
+import { US_STATES } from "../types/states";
 
 export type NWSAlertProperties = {
   id: string;
@@ -17,10 +17,18 @@ export type NWSAlertProperties = {
   parameters?: {
     AWIPSidentifier?: string[];
     tornadoDetection?: string[];
+    maxHailSize?: string[];
+    maxWindGust?: string[];
+    thunderstormDamageThreat?: string[];
+    flashFloodDamageThreat?: string[];
   };
   isPDS?: boolean;
   isObserved?: boolean;
   isEmergency?: boolean;
+  maxHailSize?: string[];
+  maxWindGust?: string[];
+  thunderstormDamageThreat?: string[];
+  flashFloodDamageThreat?: string[];
 };
 
 export type NWSAlertGrouped = {
@@ -101,20 +109,39 @@ export function parseAlerts(features: { id: string; properties: NWSAlertProperti
         geocode: properties.geocode,
         parameters: properties.parameters,
         isEmergency,
+        flashFloodDamageThreat: properties.parameters?.flashFloodDamageThreat,
       };
       if (!grouped[type]) grouped[type] = [];
       grouped[type].push(alertProps);
     } else if (type) {
-      const alertProps: NWSAlertProperties = {
-        id,
-        event: properties.event,
-        headline: properties.headline,
-        areaDesc: properties.areaDesc,
-        ends: properties.ends,
-        description: properties.description,
-        geocode: properties.geocode,
-        parameters: properties.parameters,
-      };
+      // For SVR, explicitly add severe warning properties
+      let alertProps: NWSAlertProperties;
+      if (type === "SVR") {
+        alertProps = {
+          id,
+          event: properties.event,
+          headline: properties.headline,
+          areaDesc: properties.areaDesc,
+          ends: properties.ends,
+          description: properties.description,
+          geocode: properties.geocode,
+          parameters: properties.parameters,
+          maxHailSize: properties.parameters?.maxHailSize,
+          maxWindGust: properties.parameters?.maxWindGust,
+          thunderstormDamageThreat: properties.parameters?.thunderstormDamageThreat,
+        };
+      } else {
+        alertProps = {
+          id,
+          event: properties.event,
+          headline: properties.headline,
+          areaDesc: properties.areaDesc,
+          ends: properties.ends,
+          description: properties.description,
+          geocode: properties.geocode,
+          parameters: properties.parameters,
+        };
+      }
       if (!grouped[type]) grouped[type] = [];
       grouped[type].push(alertProps);
     }
