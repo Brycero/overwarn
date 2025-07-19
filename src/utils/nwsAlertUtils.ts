@@ -45,10 +45,11 @@ export function parseAlerts(features: { id: string; properties: NWSAlertProperti
     { pattern: /Severe Thunderstorm Watch/i, type: "SVA" },
     { pattern: /Flood Watch/i, type: "FFA" },
     { pattern: /Flood Warning/i, type: "FLW" },
-    { pattern: /Tropical Storm Watch/i, type: "TRA" },
-    { pattern: /Tropical Storm Warning/i, type: "TRW" },
-    { pattern: /Hurricane Watch/i, type: "HUA" },
-    { pattern: /Hurricane Warning/i, type: "HUW" },
+    // TODO: Add once coastal alert parsing is improved and expires-less alerts are fixed
+    // { pattern: /Tropical Storm Watch/i, type: "TRA" },
+    // { pattern: /Tropical Storm Warning/i, type: "TRW" },
+    // { pattern: /Hurricane Watch/i, type: "HUA" },
+    // { pattern: /Hurricane Warning/i, type: "HUW" },
   ];
 
   const grouped: NWSAlertGrouped = {};
