@@ -369,9 +369,12 @@ export function useAlertOverlay() {
     }
   }, [queue]);
 
-  // Reset queue index to 0 when filters (searchParams) change
+  // Reset queue index and seen alerts when filters (searchParams) change
   useEffect(() => {
     setCurrentIdx(0);
+    setSeenAlertKeys(new Set());
+    setHasInitializedSeen(false);
+    newAlertsRef.current.clear();
   }, [searchParams]);
 
   return {
