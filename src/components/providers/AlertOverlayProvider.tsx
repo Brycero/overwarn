@@ -2,8 +2,16 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { ALERT_TYPES, TAILWIND_TO_HEX } from "../../config/alertConfig";
-import { parseAlerts, NWSAlertGrouped, NWSAlertProperties } from "../../utils/nwsAlertUtils";
-import { applyQueryFilters, parseColorsParam, isPassiveMode } from "../../utils/queryParamUtils";
+import {
+  parseAlerts,
+  NWSAlertGrouped,
+  NWSAlertProperties,
+} from "../../utils/nwsAlertUtils";
+import {
+  applyQueryFilters,
+  parseColorsParam,
+  isPassiveMode,
+} from "../../utils/queryParamUtils";
 import { useSearchParams } from "next/navigation";
 import React, { createContext, useContext } from "react";
 import { flushSync } from "react-dom";
@@ -20,6 +28,7 @@ export type AlertDisplay = {
   isPDS?: boolean;
   isObserved?: boolean;
   isEmergency?: boolean;
+  alertType: string;
 };
 
 export function useAlertOverlay() {
@@ -27,7 +36,10 @@ export function useAlertOverlay() {
   const [queue, setQueue] = useState<AlertDisplay[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [scrollInfo, setScrollInfo] = useState<{ scrollDistance: number; needsScroll: boolean }>({ scrollDistance: 0, needsScroll: false });
+  const [scrollInfo, setScrollInfo] = useState<{
+    scrollDistance: number;
+    needsScroll: boolean;
+  }>({ scrollDistance: 0, needsScroll: false });
   const [startScroll, setStartScroll] = useState(false);
   const [scrollDuration, setScrollDuration] = useState(0);
   const [bufferTime] = useState(2000); // ms
@@ -39,7 +51,9 @@ export function useAlertOverlay() {
   const [seenAlertKeys, setSeenAlertKeys] = useState<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [hasInitializedSeen, setHasInitializedSeen] = useState(false);
-  const [alertTypeCounts, setAlertTypeCounts] = useState<{ [key: string]: number }>({});
+  const [alertTypeCounts, setAlertTypeCounts] = useState<{
+    [key: string]: number;
+  }>({});
   const newAlertsRef = useRef<Set<string>>(new Set());
   const currentPositionRef = useRef(0);
 
@@ -54,7 +68,8 @@ export function useAlertOverlay() {
   const mergedAlertTypes = useMemo(() => {
     return ALERT_TYPES.map((type) => {
       // If user override, use that hex; otherwise, convert Tailwind to hex
-      const hex = userColors[type.key] || TAILWIND_TO_HEX[type.color] || "#404040";
+      const hex =
+        userColors[type.key] || TAILWIND_TO_HEX[type.color] || "#404040";
       return {
         ...type,
         color: hex,
@@ -67,11 +82,11 @@ export function useAlertOverlay() {
     let isMounted = true;
     async function fetchAlerts() {
       try {
-        const res = await fetch(
-          "https://api.weather.gov/alerts/active"
-        );
+        const res = await fetch("https://api.weather.gov/alerts/active");
         if (!res.ok) {
-          throw new Error(`Network response was not ok: ${res.status} ${res.statusText}`);
+          throw new Error(
+            `Network response was not ok: ${res.status} ${res.statusText}`
+          );
         }
         const data = await res.json();
         if (isMounted) {
@@ -79,20 +94,25 @@ export function useAlertOverlay() {
           const parsedAlerts = parseAlerts(data.features || []);
           // Compute counts for each alert type (before filtering)
           const counts: { [key: string]: number } = {};
-          ALERT_TYPES.forEach(type => {
+          ALERT_TYPES.forEach((type) => {
             counts[type.key] = (parsedAlerts[type.key] || []).length;
           });
           setAlertTypeCounts(counts);
           // Apply filters based on query parameters
-          const state = searchParams.get('state') || undefined;
-          const wfo = searchParams.get('wfo') || undefined;
-          const type = searchParams.get('type') || undefined;
-          const zone = searchParams.get('zone') || undefined;
-          const filteredAlerts = applyQueryFilters(parsedAlerts, { state, wfo, type, zone });
+          const state = searchParams.get("state") || undefined;
+          const wfo = searchParams.get("wfo") || undefined;
+          const type = searchParams.get("type") || undefined;
+          const zone = searchParams.get("zone") || undefined;
+          const filteredAlerts = applyQueryFilters(parsedAlerts, {
+            state,
+            wfo,
+            type,
+            zone,
+          });
           setAlerts(filteredAlerts);
         }
       } catch (error) {
-        console.error('Failed to fetch alerts:', error);
+        console.error("Failed to fetch alerts:", error);
       }
     }
     fetchAlerts();
@@ -104,7 +124,7 @@ export function useAlertOverlay() {
   }, [searchParams]);
 
   function getAlertKey(alert: { id: string } | null) {
-    if (!alert) return '';
+    if (!alert) return "";
     return alert.id;
   }
 
@@ -113,18 +133,29 @@ export function useAlertOverlay() {
     return mergedAlertTypes.flatMap(({ key, label, color }) =>
       (alerts[key] || []).map((a: NWSAlertProperties) => {
         let displayLabel = label;
-        if (key === "TOR") {
+        let displayColor = color;
+
+        // Handle emergency alerts with special colors and labels
+        if (a.isEmergency) {
+          if (key === "TOR") {
+            displayLabel = "TORNADO EMERGENCY";
+            displayColor = TAILWIND_TO_HEX["bg-fuchsia-600"] || "#c026d3";
+          } else if (key === "FFW") {
+            displayLabel = "FLASH FLOOD EMERGENCY";
+            // TODO: change color for Flash Flood Emergency in future?
+          }
+        } else if (key === "TOR") {
           if (a.isPDS) {
             displayLabel = "PDS " + displayLabel;
           } else if (a.isObserved) {
             displayLabel = "OBSERVED " + displayLabel;
           }
         }
-        
+
         return {
           id: a.id,
           label: displayLabel,
-          color,
+          color: displayColor,
           headline: a.headline,
           area: a.areaDesc,
           expires: a.ends,
@@ -133,6 +164,7 @@ export function useAlertOverlay() {
           isPDS: a.isPDS,
           isObserved: a.isObserved,
           isEmergency: a.isEmergency,
+          alertType: key,
         };
       })
     );
@@ -147,10 +179,10 @@ export function useAlertOverlay() {
   useEffect(() => {
     // Get flattened alerts
     const flatAlerts = getFlattedAlerts();
-    
+
     // Compute keys for all alerts
     const flatAlertKeys = flatAlerts.map(getAlertKey);
-    
+
     // On first load, initialize seenAlertKeys with all current alert keys
     if (!hasInitializedSeen && flatAlertKeys.length > 0) {
       setSeenAlertKeys(new Set(flatAlertKeys));
@@ -166,7 +198,7 @@ export function useAlertOverlay() {
     // Find new alerts (those not in seenAlertKeys)
     const newAlerts: AlertDisplay[] = [];
     const existingAlerts: AlertDisplay[] = [];
-    
+
     flatAlerts.forEach((alert) => {
       const key = getAlertKey(alert);
       if (!seenAlertKeys.has(key)) {
@@ -183,7 +215,7 @@ export function useAlertOverlay() {
 
     // Remove any alerts from newAlertsRef that are no longer in the alert feed
     const allCurrentKeys = new Set(flatAlertKeys);
-    newAlertsRef.current.forEach(key => {
+    newAlertsRef.current.forEach((key) => {
       if (!allCurrentKeys.has(key)) {
         newAlertsRef.current.delete(key);
       }
@@ -191,9 +223,9 @@ export function useAlertOverlay() {
 
     // If there are new alerts, insert them after current position
     if (newAlerts.length > 0 && queue.length > 0) {
-      const currentPos = currentPositionRef.current; 
+      const currentPos = currentPositionRef.current;
       const nextPosition = (currentPos + 1) % queue.length;
-      
+
       // Create a new queue with the new alerts inserted after current position
       const updatedQueue = [...queue];
       updatedQueue.splice(nextPosition, 0, ...newAlerts);
@@ -215,8 +247,10 @@ export function useAlertOverlay() {
 
   // Compute a stable key for the current alert
   const currentAlert = queue[currentIdx] || null;
-  const alertKey = currentAlert ? getAlertKey(currentAlert) : '';
-  const isCurrentAlertNew = currentAlert ? newAlertsRef.current.has(alertKey) : false;
+  const alertKey = currentAlert ? getAlertKey(currentAlert) : "";
+  const isCurrentAlertNew = currentAlert
+    ? newAlertsRef.current.has(alertKey)
+    : false;
 
   // When scrollInfo changes, recalculate durations
   useEffect(() => {
@@ -250,25 +284,25 @@ export function useAlertOverlay() {
   // Control scroll and cycling
   useEffect(() => {
     if (alertsLengthRef.current <= 1) return;
-    
+
     // Clear any existing transition timers to prevent overlap
     if (transitionTimeout.current) {
       clearTimeout(transitionTimeout.current);
       transitionTimeout.current = null;
     }
-    
+
     setStartScroll(false); // reset scroll
-    
+
     // Start scroll after a short delay to ensure AlertAreaBar is rendered
     const scrollStart = setTimeout(() => {
       setStartScroll(true);
     }, 50); // 50ms delay to allow DOM update
-    
+
     // Advance to next alert after displayDuration
     const interval = setTimeout(() => {
       // Only transition if we're still showing the same alert
       // This prevents race conditions when the queue changes
-      if (getAlertKey(queue[currentIdx] || null) === alertKey) {
+      if (getAlertKey(currentAlert) === alertKey) {
         setIsTransitioning(true);
         transitionTimeout.current = setTimeout(() => {
           // Double-check we haven't already changed indices
@@ -277,7 +311,7 @@ export function useAlertOverlay() {
             if (isCurrentAlertNew && currentAlert) {
               const key = alertKey;
               flushSync(() => {
-                setSeenAlertKeys(prev => new Set([...prev, key]));
+                setSeenAlertKeys((prev) => new Set([...prev, key]));
                 // Remove from newAlertsRef
                 const newSet = new Set(newAlertsRef.current);
                 newSet.delete(key);
@@ -291,13 +325,14 @@ export function useAlertOverlay() {
         }, 300);
       }
     }, displayDuration);
-    
+
     return () => {
       clearTimeout(scrollStart);
       clearTimeout(interval);
       if (transitionTimeout.current) clearTimeout(transitionTimeout.current);
     };
-  }, [alertKey, displayDuration, queue, currentIdx, isCurrentAlertNew, currentAlert]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alertKey, displayDuration]);
 
   // Reset transition state when currentIdx changes
   useEffect(() => {
@@ -306,12 +341,12 @@ export function useAlertOverlay() {
       clearTimeout(transitionTimeout.current);
       transitionTimeout.current = null;
     }
-    
+
     // Set isTransitioning to false after a very brief delay to ensure smooth transition
     const resetTimeout = setTimeout(() => {
       setIsTransitioning(false);
     }, 50);
-    
+
     return () => clearTimeout(resetTimeout);
   }, [currentIdx]);
 
@@ -325,16 +360,21 @@ export function useAlertOverlay() {
       return;
     }
     if (lastAlertKey.current) {
-      const idx = queue.findIndex(a => getAlertKey(a) === lastAlertKey.current);
+      const idx = queue.findIndex(
+        (a) => getAlertKey(a) === lastAlertKey.current
+      );
       setCurrentIdx(idx >= 0 ? idx : 0);
     } else {
       setCurrentIdx(0);
     }
   }, [queue]);
 
-  // Reset queue index to 0 when filters (searchParams) change
+  // Reset queue index and seen alerts when filters (searchParams) change
   useEffect(() => {
     setCurrentIdx(0);
+    setSeenAlertKeys(new Set());
+    setHasInitializedSeen(false);
+    newAlertsRef.current.clear();
   }, [searchParams]);
 
   return {
@@ -352,10 +392,57 @@ export function useAlertOverlay() {
   };
 }
 
-const AlertOverlayContext = createContext<ReturnType<typeof useAlertOverlay> | undefined>(undefined);
+const AlertOverlayContext = createContext<
+  ReturnType<typeof useAlertOverlay> | undefined
+>(undefined);
 
-export const AlertOverlayProvider = ({ children }: { children: React.ReactNode }) => {
-  const value = useAlertOverlay();
+export const AlertOverlayProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const {
+    alert,
+    isCurrentAlertNew,
+    isTransitioning,
+    scrollInfo,
+    setScrollInfo,
+    startScroll,
+    scrollDuration,
+    bufferTime,
+    displayDuration,
+    mergedAlertTypes,
+    alertTypeCounts,
+  } = useAlertOverlay();
+
+  const value = useMemo(
+    () => ({
+      alert,
+      isCurrentAlertNew,
+      isTransitioning,
+      scrollInfo,
+      setScrollInfo,
+      startScroll,
+      scrollDuration,
+      bufferTime,
+      displayDuration,
+      mergedAlertTypes,
+      alertTypeCounts,
+    }),
+    [
+      alert,
+      isCurrentAlertNew,
+      isTransitioning,
+      scrollInfo,
+      setScrollInfo,
+      startScroll,
+      scrollDuration,
+      bufferTime,
+      displayDuration,
+      mergedAlertTypes,
+      alertTypeCounts,
+    ]
+  );
   return (
     <AlertOverlayContext.Provider value={value}>
       {children}
@@ -365,6 +452,9 @@ export const AlertOverlayProvider = ({ children }: { children: React.ReactNode }
 
 export const useAlertOverlayContext = () => {
   const ctx = useContext(AlertOverlayContext);
-  if (!ctx) throw new Error("useAlertOverlayContext must be used within AlertOverlayProvider");
+  if (!ctx)
+    throw new Error(
+      "useAlertOverlayContext must be used within AlertOverlayProvider"
+    );
   return ctx;
-}; 
+};

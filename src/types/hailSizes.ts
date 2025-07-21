@@ -1,0 +1,15 @@
+export const HAIL_SIZE_MAP: Record<string, string> = {
+    "0.25": "Pea",
+    "0.75": "Penny",
+    "0.88": "Nickel",
+    "1.00": "Quarter",
+    "1.25": "Half dollar",
+    "1.50": "Ping pong ball",
+    "1.75": "Golf ball",
+    "2.00": "Hen egg",
+    "2.50": "Tennis ball",
+    "2.75": "Baseball",
+    "3.00": "Tea cup",
+    "4.00": "Grapefruit",
+    "4.50": "Softball",
+  };

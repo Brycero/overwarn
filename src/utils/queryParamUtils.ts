@@ -1,5 +1,5 @@
 import { filterAlertsByStates, filterAlertsByOffices, NWSAlertGrouped, filterAlertsByTypes, filterAlertsByZones } from './nwsAlertUtils';
-import { US_STATES } from "@/config/states";
+import { US_STATES } from "@/types/states";
 
 /**
  * Returns the codes for the 48 contiguous US states plus DC

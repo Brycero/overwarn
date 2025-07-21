@@ -164,15 +164,20 @@ export function SettingsDialog({ onSeenSettings, showNewBadge }: { onSeenSetting
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-6 mt-2" onSubmit={e => e.preventDefault()}>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="show-new-badge-checkbox"
-                checked={showNewAlertBadge}
-                onCheckedChange={checked => handleShowNewBadgeChange(!!checked)}
-              />
-              <label htmlFor="show-new-badge-checkbox" className="text-sm font-medium select-none">
-                Show newly issued alerts immediately and play sound
-              </label>
+            <div className="flex flex-col items-start gap-1">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="passive-mode-checkbox"
+                  checked={showNewAlertBadge}
+                  onCheckedChange={checked => handleShowNewBadgeChange(!!checked)}
+                />
+                <label htmlFor="passive-mode-checkbox" className="text-sm font-medium select-none">
+                  Show newly issued alerts immediately and play sound
+                </label>
+              </div>
+              <div className="text-xs text-muted-foreground ml-7">
+                When disabled, Overwarn will cycle through active alerts passively, not interrupting when new alerts are issued.
+              </div>
             </div>
             <div>
               <label htmlFor="zone-input" className="block text-sm font-medium">

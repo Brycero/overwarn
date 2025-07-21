@@ -9,6 +9,9 @@ type AlertExpiresProps = {
 };
 
 export default function AlertExpires({ expires, isTransitioning, isNew, showNewBadge }: AlertExpiresProps) {
+  const expiresText = expires ? getExpiresIn(expires) : "";
+  const hasContent = expiresText || (isNew && showNewBadge);
+  
   return (
     <div 
       className="flex items-center px-4 py-2 text-white font-bold text-xl shadow row-span-1 col-span-1 drop-shadow-md whitespace-nowrap overflow-hidden text-ellipsis" 
@@ -18,13 +21,17 @@ export default function AlertExpires({ expires, isTransitioning, isNew, showNewB
         borderTop: '1px solid #404040'
       }}
     >
-      <span className={`flex items-center transition-all duration-300 ${isTransitioning && expires ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+      <span className={`flex items-center transition-all duration-300 ${
+        !hasContent ? 'opacity-0 translate-y-4' : 
+        isTransitioning ? 'opacity-0 translate-y-4' : 
+        'opacity-100 translate-y-0'
+      }`}>
         {isNew && showNewBadge && (
           <span className="bg-yellow-400 text-black font-extrabold rounded px-2 py-0.5 mr-3 border border-yellow-600" style={{letterSpacing: '0.05em'}}>
             NEW
           </span>
         )}
-        {expires ? `EXPIRES IN ${getExpiresIn(expires)}` : ''}
+        {expiresText ? `EXPIRES IN ${expiresText}` : ''}
       </span>
     </div>
   );
