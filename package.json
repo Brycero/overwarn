@@ -2,7 +2,7 @@
   "name": "overwarn",
   "version": "0.1.6",
   "private": true,
-  "packageManager": "pnpm@11.1.3",
+  "packageManager": "pnpm@11.13.0",
   "engines": {
     "node": ">=22"
   },
@@ -26,24 +26,24 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.503.0",
     "luxon": "^3.6.1",
-    "next": "16.2.6",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/eslintrc": "^3.3.6",
     "@eslint/plugin-kit": "0.3.4",
-    "@tailwindcss/postcss": "^4.1.11",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/luxon": "^3.6.2",
     "@types/node": "^20.19.4",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "eslint": "^9.30.1",
-    "eslint-config-next": "16.2.6",
-    "tailwindcss": "^4.1.11",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "eslint": "10.8.0",
+    "eslint-config-next": "16.3.0",
+    "tailwindcss": "^4.3.3",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5.8.3",
-    "wrangler": "^4.112.0"
+    "wrangler": "^4.118.0"
   }
 }
