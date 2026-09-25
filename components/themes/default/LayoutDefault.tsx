@@ -1,17 +1,11 @@
 import React from "react";
-import { useAlertOverlayContext } from "../../providers/AlertOverlayProvider";
+import { useAlertOverlayContext } from "@/components/providers/AlertOverlayProvider";
 import AlertExpires from "./AlertExpires";
 import AlertStateBar from "./AlertStateBar";
 import AlertTypeBar from "./AlertTypeBar";
 import AlertAreaBar from "./AlertAreaBar";
-import { Geist } from "next/font/google";
 import { useSearchParams } from "next/navigation";
-import { isPassiveMode } from "../../../utils/queryParamUtils";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import { isPassiveMode } from "@/utils/queryParamUtils";
 
 export default function AlertOverlayLayoutDefault() {
   const {
@@ -27,8 +21,8 @@ export default function AlertOverlayLayoutDefault() {
   const showNewBadge = !isPassiveMode(searchParams);
 
   return (
-    <div className={`fixed bottom-0 left-0 w-full z-50 ${geistSans.variable}`} style={{ fontFamily: 'var(--font-geist-sans), Arial, sans-serif' }}>
-      <div className="grid grid-cols-[auto_1fr] grid-rows-2 w-full min-h-[90px]">
+    <div className="fixed bottom-0 left-0 z-50 w-full font-sans">
+      <div className="grid grid-cols-[auto_1fr] grid-rows-2 w-full min-h-22.5">
         {/* Left Column Top: Expires in time */}
         <AlertExpires
           expires={alert ? alert.expires : null}

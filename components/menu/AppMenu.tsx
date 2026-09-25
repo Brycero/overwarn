@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense, useEffect } from "react";
+import React, { useState, Suspense, useSyncExternalStore } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -13,21 +13,23 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
   DropdownMenuCheckboxItem,
-} from "../ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "../ui/tooltip";
+} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal, Info } from "lucide-react";
 import { US_STATES } from "@/types/states";
 import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { NWSOffice, NWSOfficeNames } from "@/types/nwsOffices";
-import { SettingsDialog } from "./Settings";
-import { useAlertOverlayContext } from "../providers/AlertOverlayProvider";
-import { AboutDialog } from "./About";
+import { SettingsDialog } from "@/components/menu/Settings";
+import { useAlertOverlayContext } from "@/components/providers/AlertOverlayProvider";
+import { AboutDialog } from "@/components/menu/About";
 
 function formatQueryParams(params: URLSearchParams): string {
   const formattedParams = new URLSearchParams();
@@ -101,7 +103,15 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
         .map((type) => type)
     : [];
 
-  const [showNewCircle, setShowNewCircle] = useState(true);
+  const [dismissedNewCircle, setDismissedNewCircle] = useState(false);
+  const hasSeenSettings = useSyncExternalStore(
+    () => () => {},
+    () =>
+      typeof window !== "undefined" &&
+      Boolean(localStorage.getItem("seenSettings")),
+    () => false,
+  );
+  const showNewCircle = !hasSeenSettings && !dismissedNewCircle;
 
   const updateURL = (newStates: string[], newOffices: string[]) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -254,30 +264,43 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
   const allAlertsCount = ALERT_TYPES
     .reduce((sum, type) => sum + (alertTypeCounts[type.key] || 0), 0);
 
-  // The useEffect that sets showNewCircle based on seenSettings in localStorage on mount is still needed, but remove any redundant comments or code about hiding the circle elsewhere.
-  useEffect(() => {
-    const seenSettings = localStorage.getItem("seenSettings");
-    if (seenSettings) {
-      setShowNewCircle(false);
-    }
-  }, []);
+  const handleSeenSettings = () => setDismissedNewCircle(true);
 
-  const handleSeenSettings = () => setShowNewCircle(false);
+  const shareUrl = `https://overwarn.mirra.tv${pathname}${searchParams.toString() ? `?${formatQueryParams(searchParams)}` : ""}`;
+
+  const copyShareUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch (err) {
+      console.error("Failed to copy using clipboard API:", err);
+    }
+  };
 
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        {children ? children : <button aria-label="Open menu"><Menu className="w-8 h-8" /></button>}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[300px]" sideOffset={8} align="start">
-        <DropdownMenuLabel className="text-lg font-bold text-center py-2">
-          <div className="flex items-center justify-center gap-2">
-            Overwarn
-            <span className="bg-muted px-1.5 py-0.5 rounded text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Beta
-            </span>
-          </div>
-        </DropdownMenuLabel>
+      {children && React.isValidElement(children) ? (
+        <DropdownMenuTrigger render={children} nativeButton />
+      ) : (
+        <DropdownMenuTrigger
+          nativeButton
+          render={<button type="button" aria-label="Open menu" />}
+        >
+          <Menu className="size-8" />
+        </DropdownMenuTrigger>
+      )}
+      <DropdownMenuContent className="w-75" sideOffset={8} align="start">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="py-2 text-center text-lg font-bold text-foreground">
+            <div className="flex items-center justify-center gap-2">
+              Overwarn
+              <Badge variant="secondary" className="uppercase tracking-wider">
+                Beta
+              </Badge>
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="w-full">
@@ -289,10 +312,7 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
           <DropdownMenuSubContent>
             <DropdownMenuItem
               className="font-medium mt-1 flex items-center justify-between"
-              onSelect={(e) => {
-                e.preventDefault();
-                handleAllTypes();
-              }}
+              onClick={() => handleAllTypes()}
             >
               <span>All Alerts</span>
               {allAlertsCount > 0 && (
@@ -307,7 +327,7 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
                 key={type.key}
                 checked={selectedTypes.includes(type.key)}
                 onCheckedChange={(checked) => handleTypeSelect(type.key, checked)}
-                onSelect={(e) => e.preventDefault()}
+                closeOnClick={false}
                 className="flex items-center justify-between"
               >
                 <span className="flex items-center">
@@ -333,27 +353,29 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
                 <span className="text-sm text-muted-foreground">{getSelectedStatesLabel()}</span>
               </div>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
+            <DropdownMenuSubContent className="max-h-100 overflow-y-auto">
               <div className="px-2 py-1.5 sticky top-0 bg-popover z-10 border-b">
                 <div className="flex items-center px-2 bg-muted rounded-md">
                   <Search className="h-3.5 w-3.5 text-muted-foreground mr-2" />
                   <input
                     type="text"
                     placeholder="Search states/territories..."
+                    tabIndex={-1}
                     className="flex h-9 w-full rounded-md bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground"
                     value={stateSearch}
                     onChange={(e) => handleSearchChange(e, setStateSearch)}
                     onKeyDown={handleSearchKeyDown}
                     onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      e.currentTarget.focus();
+                    }}
                   />
                 </div>
               </div>
-              <DropdownMenuItem 
-                className="font-medium mt-1" 
-                onSelect={(e) => {
-                  e.preventDefault();
-                  handleAllStates();
-                }}
+              <DropdownMenuItem
+                className="font-medium mt-1"
+                onClick={() => handleAllStates()}
               >
                 All States/Territories
               </DropdownMenuItem>
@@ -370,7 +392,7 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
                     updateURL([], selectedOffices);
                   }
                 }}
-                onSelect={e => e.preventDefault()}
+                closeOnClick={false}
               >
                 Lower 48 States
               </DropdownMenuCheckboxItem>
@@ -385,7 +407,7 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
                     key={state.code}
                     checked={selectedStates.includes(state.code.toUpperCase())}
                     onCheckedChange={(checked) => handleStateSelect(state.code, checked)}
-                    onSelect={(e) => e.preventDefault()}
+                    closeOnClick={false}
                     className="flex items-center justify-between"
                   >
                     <span>{state.name}</span>
@@ -404,27 +426,29 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
                 <span className="text-sm text-muted-foreground">{getSelectedOfficesLabel()}</span>
               </div>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
+            <DropdownMenuSubContent className="max-h-100 overflow-y-auto">
               <div className="px-2 py-1.5 sticky top-0 bg-popover z-10 border-b">
                 <div className="flex items-center px-2 bg-muted rounded-md">
                   <Search className="h-3.5 w-3.5 text-muted-foreground mr-2" />
                   <input
                     type="text"
                     placeholder="Search offices..."
+                    tabIndex={-1}
                     className="flex h-9 w-full rounded-md bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground"
                     value={officeSearch}
                     onChange={(e) => handleSearchChange(e, setOfficeSearch)}
                     onKeyDown={handleSearchKeyDown}
                     onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      e.currentTarget.focus();
+                    }}
                   />
                 </div>
               </div>
-              <DropdownMenuItem 
-                className="font-medium mt-1" 
-                onSelect={(e) => {
-                  e.preventDefault();
-                  handleAllOffices();
-                }}
+              <DropdownMenuItem
+                className="font-medium mt-1"
+                onClick={() => handleAllOffices()}
               >
                 All Offices
               </DropdownMenuItem>
@@ -439,7 +463,7 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
                     key={office.code}
                     checked={selectedOffices.includes(office.code.toUpperCase())}
                     onCheckedChange={(checked) => handleOfficeSelect(office.code, checked)}
-                    onSelect={(e) => e.preventDefault()}
+                    closeOnClick={false}
                     className="flex items-center justify-between"
                   >
                     <span>{office.name}</span>
@@ -455,53 +479,52 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
         
         <DropdownMenuSeparator />
         
-        {/* Copy Link Section */}
-        <DropdownMenuLabel className="flex flex-col pt-2 pb-1">
-          <span className="font-medium">Add to Streaming Software</span>
-          <span className="text-xs text-muted-foreground">Use a browser source in OBS, Streamlabs, or other popular streaming software.</span>
-        </DropdownMenuLabel>
-        <div className="px-2 pb-2">
-          <div className="flex items-center gap-2 bg-muted p-2 rounded-md">
-            <input
-              type="text"
-              readOnly
-              className="flex-1 text-xs bg-transparent border-none outline-none font-mono"
-              value={`https://overwarn.mirra.tv${pathname}${searchParams.toString() ? `?${formatQueryParams(searchParams)}` : ''}`}
-              aria-label="Shareable page URL"
-              onFocus={e => e.target.select()}
-            />
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex items-center justify-center text-xs font-medium h-8 w-8 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                    onClick={async () => {
-                      const url = `https://overwarn.mirra.tv${pathname}${searchParams.toString() ? `?${formatQueryParams(searchParams)}` : ''}`;
-                      try {
-                        await navigator.clipboard.writeText(url);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 1200);
-                      } catch (err) {
-                        console.error('Failed to copy using clipboard API:', err);
-                      }
-                    }}
+        <DropdownMenuGroup>
+          <div className="flex flex-col gap-1.5 px-1.5 py-1 text-sm">
+            <div className="flex flex-col items-start">
+              <span className="font-medium">Add to Streaming Software</span>
+              <span className="text-sm text-muted-foreground">
+                Use a browser source in OBS, Streamlabs, or other popular streaming software.
+              </span>
+            </div>
+            <div className="flex h-9 items-center gap-1 rounded-md bg-muted px-2">
+              <span
+                className="min-w-0 flex-1 truncate font-mono text-muted-foreground"
+                aria-label="Shareable page URL"
+              >
+                {shareUrl}
+              </span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={copied ? "Copied" : "Copy to clipboard"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void copyShareUrl();
+                        }}
+                      />
+                    }
                   >
-                    {copied ? <Check className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{copied ? 'Copied!' : 'Copy to clipboard'}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                    {copied ? <Check /> : <Clipboard />}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{copied ? "Copied!" : "Copy to clipboard"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
-        </div>
+        </DropdownMenuGroup>
         {/* More Options Section */}
         <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="w-full flex items-center gap-2">
-            <MoreHorizontal className="w-4 h-4" />
+            <MoreHorizontal />
             <span className="font-medium">More Options</span>
             <span
               id="new-circle"
@@ -509,21 +532,37 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
             />
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            <DropdownMenuItem onSelect={() => setAboutOpen(true)}>
-              <Info className="w-4 h-4" />
+            <DropdownMenuItem onClick={() => setAboutOpen(true)}>
+              <Info />
               <span>About</span>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href="https://github.com/brycero/overwarn/issues" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                <Bug className="w-4 h-4" />
-                Report Issue
-              </a>
+            <DropdownMenuItem
+              render={
+                <a
+                  href="https://github.com/brycero/overwarn/issues"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                />
+              }
+              nativeButton={false}
+            >
+              <Bug />
+              Report Issue
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href="https://github.com/brycero/overwarn" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                <Code className="w-4 h-4" />
-                View on GitHub
-              </a>
+            <DropdownMenuItem
+              render={
+                <a
+                  href="https://github.com/brycero/overwarn"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                />
+              }
+              nativeButton={false}
+            >
+              <Code />
+              View on GitHub
             </DropdownMenuItem>
             <SettingsDialog onSeenSettings={handleSeenSettings} showNewBadge={showNewCircle} />
           </DropdownMenuSubContent>

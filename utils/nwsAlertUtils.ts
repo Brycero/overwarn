@@ -1,6 +1,6 @@
 // Utility functions for parsing and handling NWS alerts
 import { DateTime } from "luxon";
-import { US_STATES } from "../types/states";
+import { US_STATES } from "@/types/states";
 
 export type NWSAlertProperties = {
   id: string;

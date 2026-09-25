@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import ThemeProvider from "../components/providers/ThemeProvider";
-import { AlertOverlayProvider } from "../components/providers/AlertOverlayProvider";
+import ThemeProvider from "@/components/providers/ThemeProvider";
+import { AlertOverlayProvider } from "@/components/providers/AlertOverlayProvider";
 import React, { Suspense } from "react";
 
 const geistSans = Geist({
@@ -26,10 +26,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+    >
+      <body className="min-h-svh font-sans antialiased">
         <Suspense>
           <AlertOverlayProvider>
             <ThemeProvider />

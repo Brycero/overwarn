@@ -3,46 +3,105 @@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "../ui/dialog";
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Code, Scale } from "lucide-react";
 import Image from "next/image";
-import React from "react";
 
 const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || "Dev";
 const currentYear = new Date().getFullYear();
 
-export function AboutDialog({ open, onOpenChange }: { open?: boolean, onOpenChange?: (open: boolean) => void }) {
+export function AboutDialog({
+  open,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-sm flex flex-col items-center text-center">
-        <DialogHeader>
-          <div className="flex flex-col items-center justify-center gap-1 mt-2">
-            <Image src="/icon.svg" alt="Overwarn Logo" width={64} height={64} priority className="shadow" />
-            <DialogTitle className="text-2xl font-bold mt-1">Overwarn</DialogTitle>
-            <DialogDescription className="text-base mt-0.5">v{appVersion}</DialogDescription>
-          </div>
-        </DialogHeader>
-        <div className="mt-2 text-sm text-muted-foreground">Created by <a href="https://github.com/Brycero" target="_blank" rel="noopener noreferrer" className="font-semibold no-underline hover:text-primary">Brycero</a></div>
-        <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground hover:text-primary">
-          <a href="https://github.com/Brycero/overwarn/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
-            <Scale className="w-4 h-4" />
+      <DialogContent className="sm:max-w-sm">
+        <div className="flex flex-col items-center gap-3">
+          <Image
+            src="/icon.svg"
+            alt=""
+            width={64}
+            height={64}
+            priority
+            className="size-16 rounded-xl shadow-sm"
+          />
+          <DialogHeader className="w-full items-center text-center sm:text-center">
+            <DialogTitle>Overwarn</DialogTitle>
+            <DialogDescription>Version {appVersion}</DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Created by{" "}
+          <a
+            href="https://github.com/Brycero"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
+          >
+            Brycero
+          </a>
+        </p>
+
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            nativeButton={false}
+            render={
+              <a
+                href="https://github.com/Brycero/overwarn/blob/main/LICENSE"
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            }
+          >
+            <Scale data-icon="inline-start" />
             GPL-3.0 License
-          </a>
-        </div>
-        <div className="text-sm text-muted-foreground hover:text-primary">
-          <a href="https://github.com/brycero/overwarn" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
-            <Code className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            nativeButton={false}
+            render={
+              <a
+                href="https://github.com/brycero/overwarn"
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            }
+          >
+            <Code data-icon="inline-start" />
             View on GitHub
-          </a>
+          </Button>
         </div>
-        <DialogFooter className="w-full mt-4 flex items-center !flex-col !gap-1 !justify-center">
-          <div className="text-center text-xs text-muted-foreground opacity-80">&copy; {currentYear} Mirra</div>
-          <div className="text-center text-xs text-muted-foreground opacity-80">A <a href="https://mirra.tv" target="_blank" rel="noopener noreferrer" className="font-semibold no-underline hover:text-primary">Mirra</a> product</div>
-        </DialogFooter>
+
+        <Separator />
+
+        <div className="flex flex-col gap-1 text-center text-sm text-muted-foreground">
+          <p>&copy; {currentYear} Mirra</p>
+          <p>
+            A{" "}
+            <a
+              href="https://mirra.tv"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
+            >
+              Mirra
+            </a>{" "}
+            product
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   );

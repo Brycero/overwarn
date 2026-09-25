@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
-import { isZoneBased, getCounties, getStates, getCountiesWithStates } from "../../../utils/nwsAlertUtils";
-import { colorMap, TAILWIND_TO_HEX } from "../../../config/alertConfig";
-import { HAIL_SIZE_MAP } from "../../../types/hailSizes";
+import { isZoneBased, getCounties, getStates, getCountiesWithStates } from "@/utils/nwsAlertUtils";
+import { colorMap, TAILWIND_TO_HEX } from "@/config/alertConfig";
+import { HAIL_SIZE_MAP } from "@/types/hailSizes";
 
 // Utility to lighten a hex color by a given percent (0-100)
 function lightenHexColor(hex: string, percent = 20): string {

@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
-import { ALERT_TYPES, TAILWIND_TO_HEX } from "../../config/alertConfig";
+import { ALERT_TYPES, TAILWIND_TO_HEX } from "@/config/alertConfig";
 import {
   parseAlerts,
   NWSAlertGrouped,
   NWSAlertProperties,
-} from "../../utils/nwsAlertUtils";
+} from "@/utils/nwsAlertUtils";
 import {
   applyQueryFilters,
   parseColorsParam,
   isPassiveMode,
-} from "../../utils/queryParamUtils";
+} from "@/utils/queryParamUtils";
 import { useSearchParams } from "next/navigation";
 import React, { createContext, useContext } from "react";
 import { flushSync } from "react-dom";
