@@ -2,6 +2,7 @@
   "name": "overwarn",
   "version": "0.2.0",
   "private": true,
+  "packageManager": "pnpm@12.4.1",
   "engines": {
     "node": ">=22"
   },
