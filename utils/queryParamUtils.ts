@@ -81,6 +81,10 @@ export function parseZoneParam(zoneParam: string | string[] | undefined): string
     .filter(Boolean);
 }
 
+export function isHexColor(value: string): boolean {
+  return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
+}
+
 /**
  * Parses the 'colors' query parameter into an object mapping alert type keys to hex codes.
  * @param colorsParam The 'colors' query parameter from the URL
@@ -92,7 +96,7 @@ export function parseColorsParam(colorsParam: string | string[] | undefined): Re
   if (!param) return {};
   return param.split(',').reduce((acc, pair) => {
     const [key, value] = pair.split(':');
-    if (key && value && /^#[0-9A-Fa-f]{3,6}$/.test(value)) {
+    if (key && value && isHexColor(value)) {
       acc[key] = normalizeHex(value);
     }
     return acc;
@@ -106,7 +110,7 @@ export function parseColorsParam(colorsParam: string | string[] | undefined): Re
  */
 export function serializeColorsParam(colorsObj: Record<string, string>): string {
   return Object.entries(colorsObj)
-    .filter(([, value]) => /^#[0-9A-Fa-f]{3,6}$/.test(value))
+    .filter(([, value]) => isHexColor(value))
     .map(([key, value]) => `${key}:${normalizeHex(value)}`)
     .join(',');
 }
@@ -116,7 +120,7 @@ export function serializeColorsParam(colorsObj: Record<string, string>): string 
  * @param hex Hex color string
  * @returns 6-digit hex color string
  */
-function normalizeHex(hex: string): string {
+export function normalizeHex(hex: string): string {
   if (/^#[0-9A-Fa-f]{3}$/.test(hex)) {
     // Expand 3-digit hex to 6-digit
     return '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
@@ -197,4 +201,4 @@ export function setPassiveMode(searchParams: URLSearchParams, enable: boolean): 
     params.delete('passive');
   }
   return params;
-} 
+}

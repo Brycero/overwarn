@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense, useSyncExternalStore } from "react";
+import React, { useState, Suspense } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal, Info } from "lucide-react";
+import { Menu, Search, Clipboard, Check, Bug, Code, MoreHorizontal, Info, Settings as SettingsIcon } from "lucide-react";
 import { US_STATES } from "@/types/states";
 import { ALERT_TYPES } from "@/config/alertConfig";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
@@ -69,7 +69,11 @@ function formatQueryParams(params: URLSearchParams): string {
   return formattedParams.toString().replace(/%2C/g, ",");
 }
 
-function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, setAboutOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
+function AppMenuInner({ children, setAboutOpen, setSettingsOpen }: {
+  children?: React.ReactNode;
+  setAboutOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -102,16 +106,6 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
         .split(",")
         .map((type) => type)
     : [];
-
-  const [dismissedNewCircle, setDismissedNewCircle] = useState(false);
-  const hasSeenSettings = useSyncExternalStore(
-    () => () => {},
-    () =>
-      typeof window !== "undefined" &&
-      Boolean(localStorage.getItem("seenSettings")),
-    () => false,
-  );
-  const showNewCircle = !hasSeenSettings && !dismissedNewCircle;
 
   const updateFilters = (filters: { state?: string[]; wfo?: string[]; type?: string[] }) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -234,8 +228,6 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
   // Calculate total count for 'All Alerts'
   const allAlertsCount = ALERT_TYPES
     .reduce((sum, type) => sum + (alertTypeCounts[type.key] || 0), 0);
-
-  const handleSeenSettings = () => setDismissedNewCircle(true);
 
   const shareUrl = `https://overwarn.mirra.tv${pathname}${searchParams.toString() ? `?${formatQueryParams(searchParams)}` : ""}`;
 
@@ -491,16 +483,18 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
             </div>
           </div>
         </DropdownMenuGroup>
-        {/* More Options Section */}
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="w-full flex items-center gap-2"
+          onClick={() => setSettingsOpen(true)}
+        >
+          <SettingsIcon />
+          <span className="font-medium">Settings</span>
+        </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="w-full flex items-center gap-2">
             <MoreHorizontal />
             <span className="font-medium">More Options</span>
-            <span
-              id="new-circle"
-              className={`ml-0.5 w-2 h-2 bg-blue-500 rounded-full ${!showNewCircle ? "hidden" : ""}`}
-            />
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuItem onClick={() => setAboutOpen(true)}>
@@ -535,7 +529,6 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
               <Code />
               View on GitHub
             </DropdownMenuItem>
-            <SettingsDialog onSeenSettings={handleSeenSettings} showNewBadge={showNewCircle} />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>
@@ -545,10 +538,12 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
 
 export default function AppMenu(props: { children?: React.ReactNode }) {
   const [aboutOpen, setAboutOpen] = React.useState(false);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
   return (
     <Suspense fallback={null}>
-      <AppMenuInner {...props} setAboutOpen={setAboutOpen} />
+      <AppMenuInner {...props} setAboutOpen={setAboutOpen} setSettingsOpen={setSettingsOpen} />
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </Suspense>
   );
 }
