@@ -140,7 +140,7 @@ const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function Aler
     if (onMeasureScroll) {
       onMeasureScroll({ scrollDistance, needsScroll });
     }
-  }, [area, geocode, scrollContent, onMeasureScroll]);
+  }, [scrollContent, onMeasureScroll]);
 
   // Scroll animation controlled by parent
   useEffect(() => {
@@ -185,7 +185,7 @@ const AlertAreaBar = forwardRef<HTMLDivElement, AlertAreaBarProps>(function Aler
       clearTimeout(scrollStartTimeout);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [area, geocode, scrollContent, startScroll, scrollDuration, bufferTime]);
+  }, [scrollContent, startScroll, scrollDuration, bufferTime]);
 
   useImperativeHandle(ref, () => containerRef.current as HTMLDivElement);
 
