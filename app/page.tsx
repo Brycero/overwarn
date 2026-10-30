@@ -26,7 +26,7 @@ export default function LiveAlertOverlay() {
           <button
             type="button"
             aria-label="Open menu"
-            className="rounded-md bg-black/50 p-1 opacity-0 transition-opacity duration-300 group-hover:opacity-100 data-[state=open]:opacity-100"
+            className="rounded-md bg-black/50 p-1 opacity-0 transition-opacity duration-300 group-hover:opacity-100 data-popup-open:opacity-100"
           >
             <Menu className="size-8 text-white" />
           </button>
