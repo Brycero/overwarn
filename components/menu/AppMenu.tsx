@@ -41,7 +41,7 @@ function formatQueryParams(params: URLSearchParams): string {
   const stateParams = entries.filter(([key]) => key.toLowerCase() === "state");
   if (stateParams.length > 0) {
     const states = stateParams
-      .map(([, value]) => decodeURIComponent(value).split(","))
+      .map(([, value]) => value.split(","))
       .flat()
       .filter(Boolean);
     if (states.length > 0) {
@@ -53,7 +53,7 @@ function formatQueryParams(params: URLSearchParams): string {
   const wfoParams = entries.filter(([key]) => key.toLowerCase() === "wfo");
   if (wfoParams.length > 0) {
     const offices = wfoParams
-      .map(([, value]) => decodeURIComponent(value).split(","))
+      .map(([, value]) => value.split(","))
       .flat()
       .filter(Boolean);
     if (offices.length > 0) {
@@ -66,7 +66,7 @@ function formatQueryParams(params: URLSearchParams): string {
     .filter(([key]) => !["state", "wfo"].includes(key.toLowerCase()))
     .forEach(([key, value]) => formattedParams.append(key, value));
   
-  return decodeURIComponent(formattedParams.toString());
+  return formattedParams.toString().replace(/%2C/g, ",");
 }
 
 function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, setAboutOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
@@ -78,7 +78,7 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
   // State filter params
   const stateParam = searchParams.get("state");
   const selectedStates = stateParam 
-    ? decodeURIComponent(stateParam)
+    ? stateParam
         .split(",")
         .map(state => state.toUpperCase())
     : [];
@@ -87,7 +87,7 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
   // NWS Office filter params
   const wfoParam = searchParams.get("wfo");
   const selectedOffices = wfoParam 
-    ? decodeURIComponent(wfoParam)
+    ? wfoParam
         .split(",")
         .map(office => office.toUpperCase())
     : [];
@@ -98,7 +98,7 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
   // Alert Type filter params
   const typeParam = searchParams.get("type");
   const selectedTypes = typeParam
-    ? decodeURIComponent(typeParam)
+    ? typeParam
         .split(",")
         .map((type) => type)
     : [];
@@ -113,21 +113,15 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
   );
   const showNewCircle = !hasSeenSettings && !dismissedNewCircle;
 
-  const updateURL = (newStates: string[], newOffices: string[]) => {
+  const updateFilters = (filters: { state?: string[]; wfo?: string[]; type?: string[] }) => {
     const params = new URLSearchParams(searchParams.toString());
-    const otherParams = Array.from(params.entries())
-      .filter(([key]) => key.toLowerCase() !== "state" && key.toLowerCase() !== "wfo")
-      .map(([key, value]) => `${key}=${value}`);
-    
-    const stateParam = newStates.length > 0 ? `state=${newStates.join(",")}` : "";
-    const wfoParam = newOffices.length > 0 ? `wfo=${newOffices.join(",")}` : "";
-    
-    const queryString = [
-      ...(stateParam ? [stateParam] : []), 
-      ...(wfoParam ? [wfoParam] : []), 
-      ...otherParams
-    ].join("&");
-    
+    for (const [key, values] of Object.entries(filters)) {
+      for (const existingKey of Array.from(params.keys())) {
+        if (existingKey.toLowerCase() === key) params.delete(existingKey);
+      }
+      if (values.length > 0) params.set(key, values.join(","));
+    }
+    const queryString = params.toString().replace(/%2C/g, ",");
     router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
   };
 
@@ -140,11 +134,11 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
     } else {
       states.delete(stateCode.toUpperCase());
     }
-    updateURL(Array.from(states), selectedOffices);
+    updateFilters({ state: Array.from(states) });
   };
 
   const handleAllStates = () => {
-    updateURL([], selectedOffices);
+    updateFilters({ state: [] });
   };
 
   const getSelectedStatesLabel = () => {
@@ -174,11 +168,11 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
       offices.delete(officeCode.toUpperCase());
     }
 
-    updateURL(selectedStates, Array.from(offices));
+    updateFilters({ wfo: Array.from(offices) });
   };
 
   const handleAllOffices = () => {
-    updateURL(selectedStates, []);
+    updateFilters({ wfo: [] });
   };
 
   const getSelectedOfficesLabel = () => {
@@ -219,11 +213,11 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
     } else {
       types.delete(typeKey);
     }
-    updateURLWithTypes(Array.from(types));
+    updateFilters({ type: Array.from(types) });
   };
 
   const handleAllTypes = () => {
-    updateURLWithTypes([]);
+    updateFilters({ type: [] });
   };
 
   const getSelectedTypesLabel = () => {
@@ -235,29 +229,6 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
         : "All Types";
     }
     return `${selectedTypes.length} types selected`;
-  };
-
-  // Update URL with all filters
-  const updateURLWithTypes = (newTypes: string[]) => {
-    const params = new URLSearchParams(searchParams.toString());
-    const otherParams = Array.from(params.entries())
-      .filter(
-        ([key]) =>
-          key.toLowerCase() !== "state" &&
-          key.toLowerCase() !== "wfo" &&
-          key.toLowerCase() !== "type"
-      )
-      .map(([key, value]) => `${key}=${value}`);
-    const stateParam = selectedStates.length > 0 ? `state=${selectedStates.join(",")}` : "";
-    const wfoParam = selectedOffices.length > 0 ? `wfo=${selectedOffices.join(",")}` : "";
-    const typeParam = newTypes.length > 0 ? `type=${newTypes.join(",")}` : "";
-    const queryString = [
-      ...(stateParam ? [stateParam] : []),
-      ...(wfoParam ? [wfoParam] : []),
-      ...(typeParam ? [typeParam] : []),
-      ...otherParams,
-    ].join("&");
-    router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
   };
 
   // Calculate total count for 'All Alerts'
@@ -386,10 +357,10 @@ function AppMenuInner({ children, setAboutOpen }: { children?: React.ReactNode, 
                 onCheckedChange={(checked) => {
                   if (checked) {
                     // Set only 'cont' as the state param
-                    updateURL(["CONT"], selectedOffices);
+                    updateFilters({ state: ["CONT"] });
                   } else {
                     // Deselect 'cont', show all states
-                    updateURL([], selectedOffices);
+                    updateFilters({ state: [] });
                   }
                 }}
                 closeOnClick={false}
