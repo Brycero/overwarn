@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { MirraGlassMark } from "@/components/mirra-glass-mark";
 import { Code, Scale } from "lucide-react";
 import Image from "next/image";
 
@@ -89,18 +90,16 @@ export function AboutDialog({
 
         <div className="flex flex-col gap-1 text-center text-sm text-muted-foreground">
           <p>&copy; {currentYear} Mirra</p>
-          <p>
-            A{" "}
-            <a
-              href="https://mirra.tv"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
-            >
-              Mirra
-            </a>{" "}
-            product
-          </p>
+          <a
+            href="https://mirra.tv"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 self-center text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Mirra"
+          >
+            <MirraGlassMark className="size-5 shrink-0" />
+            <span className="text-sm">A Mirra product</span>
+          </a>
         </div>
       </DialogContent>
     </Dialog>
